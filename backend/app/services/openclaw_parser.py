@@ -64,32 +64,38 @@ def parse_status_table(output: str) -> List[Dict[str, Any]]:
         # 解析表格行
         lines = output.split('\n')
         for line in lines:
-            # 匹配表格行（包含 session key 的行）
+            # 匹配表格行（包含 agent: 的行）
             if '│' in line and 'agent:' in line:
                 parts = line.split('│')
                 if len(parts) >= 5:
                     try:
+                        # parts[0] 是空或边框，parts[1] 是 Key，parts[2] 是 Kind，parts[3] 是 Age，parts[4] 是 Model
                         key = parts[1].strip()
                         kind = parts[2].strip()
                         age = parts[3].strip()
                         model = parts[4].strip()
                         
-                        # 提取 session ID
-                        session_id = key.split(':')[-1] if ':' in key else key
+                        # 跳过空行或无效行
+                        if not key or not key.startswith('agent:'):
+                            continue
+                        
+                        # 提取 session ID（最后一部分）
+                        session_id = key
                         
                         sessions.append({
                             "id": session_id,
                             "key": key,
-                            "kind": "direct" if "direct" in kind else kind,
+                            "kind": kind.split()[-1] if kind else "",  # 提取 kind 的最后一部分
                             "age": age,
-                            "model": model,
+                            "model": model.split()[0] if model else "",  # 提取 model 名称
                             "last_seen": parse_age_to_datetime(age).isoformat(),
-                            "status": "online" if "ago" in age and ("1m" in age or "5m" in age or "10m" in age) else "offline",
+                            "status": "online" if age and ("now" in age or "1m" in age or "5m" in age) else "offline",
                         })
                     except Exception as e:
-                        logger.debug(f"Failed to parse line: {e}")
+                        logger.debug(f"Failed to parse line: {line}, error: {e}")
                         continue
         
+        logger.info(f"Parsed {len(sessions)} sessions from openclaw status")
         return sessions
         
     except Exception as e:
