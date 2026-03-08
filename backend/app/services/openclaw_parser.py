@@ -35,13 +35,14 @@ def parse_age_to_datetime(age_str: str) -> datetime:
 def parse_openclaw_status() -> List[Dict[str, Any]]:
     """解析 openclaw status 输出"""
     try:
-        # 使用 PowerShell 调用 openclaw
+        # 使用 PowerShell 调用 openclaw，使用 UTF-8 编码
         result = subprocess.run(
-            ["powershell", "-ExecutionPolicy", "Bypass", "-Command", "openclaw status"],
+            ["powershell", "-ExecutionPolicy", "Bypass", "-OutputFormat", "Text", "-Command", "openclaw status"],
             capture_output=True,
-            text=True,
             timeout=30,
-            cwd="C:\\nvm4w\\nodejs"
+            cwd="C:\\nvm4w\\nodejs",
+            encoding='utf-8',
+            errors='ignore'
         )
         
         if result.returncode == 0:
@@ -55,20 +56,9 @@ def parse_openclaw_status() -> List[Dict[str, Any]]:
         return []
 
 
-def parse_status_table() -> List[Dict[str, Any]]:
+def parse_status_table(output: str) -> List[Dict[str, Any]]:
     """解析 openclaw status 表格输出"""
     try:
-        result = subprocess.run(
-            ["openclaw", "status"],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-        
-        if result.returncode != 0:
-            return []
-        
-        output = result.stdout
         sessions = []
         
         # 解析表格行
