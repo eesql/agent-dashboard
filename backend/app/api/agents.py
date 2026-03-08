@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db.database import get_db
 from app.services.agent_monitor import AgentMonitor
+from app.services.sync_service import get_sync_service
 from app.schemas.agent import AgentResponse, AgentStatus
 from app.models.agent import Agent
 
@@ -32,7 +33,11 @@ async def get_agent(agent_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/sync")
 async def sync_agents(db: AsyncSession = Depends(get_db)):
-    """从 OpenClaw API 同步 Agent 状态"""
-    monitor = AgentMonitor(db)
-    agents = await monitor.sync_agents()
-    return {"synced": len(agents), "agents": agents}
+    """从 OpenClaw API 同步 Agent 状态（立即执行）"""
+    sync_svc = get_sync_service(db)
+    result = await sync_svc.sync_now()
+    
+    if result["success"]:
+        return result
+    else:
+        raise HTTPException(status_code=500, detail=result.get("error", "Sync failed"))

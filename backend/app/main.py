@@ -19,15 +19,30 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
+    from app.services.sync_service import get_sync_service
+    from app.db.database import async_session_maker
+    
     # 启动时
     logger.info("Starting Agent Dashboard API...")
     await init_db()
     logger.info("Database initialized")
     
+    # 启动定时同步服务
+    async with async_session_maker() as db:
+        sync_svc = get_sync_service(db)
+        await sync_svc.start()
+        logger.info("Sync service started")
+    
     yield
     
     # 关闭时
     logger.info("Shutting down Agent Dashboard API...")
+    
+    # 停止同步服务
+    async with async_session_maker() as db:
+        sync_svc = get_sync_service(db)
+        await sync_svc.stop()
+    
     await close_db()
 
 

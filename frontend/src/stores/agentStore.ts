@@ -11,6 +11,7 @@ interface AgentState {
   loading: boolean;
   error: string | null;
   lastSync: Date | null;
+  syncMessage: string | null;
   
   // Actions
   fetchAgents: () => Promise<void>;
@@ -18,6 +19,7 @@ interface AgentState {
   getAgent: (agentId: string) => Agent | undefined;
   getOnlineAgents: () => Agent[];
   clearError: () => void;
+  clearSyncMessage: () => void;
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -25,6 +27,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   loading: false,
   error: null,
   lastSync: null,
+  syncMessage: null,
   
   fetchAgents: async () => {
     set({ loading: true, error: null });
@@ -43,11 +46,16 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const result = await agentApi.sync();
-      set({ 
-        agents: result.agents, 
-        loading: false, 
-        lastSync: new Date() 
-      });
+      if (result.success) {
+        set({ 
+          agents: result.agents || get().agents, 
+          loading: false, 
+          lastSync: new Date(),
+          syncMessage: `同步成功：${result.synced_agents} 个 Agent`
+        });
+      } else {
+        throw new Error(result.error || 'Sync failed');
+      }
     } catch (error: any) {
       set({ 
         loading: false, 
@@ -85,5 +93,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   
   clearError: () => {
     set({ error: null });
+  },
+  
+  clearSyncMessage: () => {
+    set({ syncMessage: null });
   },
 }));

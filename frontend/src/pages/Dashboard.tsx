@@ -20,10 +20,13 @@ export const Dashboard: React.FC = () => {
     agents, 
     loading: agentsLoading, 
     error: agentsError,
+    syncMessage,
     fetchAgents, 
     syncAgents,
     getOnlineAgents,
-    handleWebSocketMessage
+    handleWebSocketMessage,
+    clearError,
+    clearSyncMessage
   } = useAgentStore();
   
   const { 
@@ -139,8 +142,17 @@ export const Dashboard: React.FC = () => {
 
       {/* 错误提示 */}
       {agentsError && (
-        <div className="p-4 bg-error-500/10 border border-error-500/20 rounded-lg">
+        <div className="p-4 bg-error-500/10 border border-error-500/20 rounded-lg flex items-center justify-between">
           <p className="text-sm text-error-500">{agentsError}</p>
+          <button onClick={clearError} className="text-error-500 hover:text-error-400">×</button>
+        </div>
+      )}
+      
+      {/* 同步成功提示 */}
+      {syncMessage && (
+        <div className="p-4 bg-success-500/10 border border-success-500/20 rounded-lg flex items-center justify-between">
+          <p className="text-sm text-success-500">{syncMessage}</p>
+          <button onClick={clearSyncMessage} className="text-success-500 hover:text-success-400">×</button>
         </div>
       )}
 
