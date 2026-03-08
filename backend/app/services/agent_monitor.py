@@ -58,30 +58,40 @@ class AgentMonitor:
         """更新统计数据"""
         from app.models.metric import Metric
         from datetime import date
+        from sqlalchemy import update
         
         today = date.today()
         
-        # 查询今天的 metric
-        result = await self.db.execute(
-            select(Metric).where(Metric.date == today)
-        )
-        metric = result.scalar_one_or_none()
-        
-        if metric:
-            metric.token_count = token_count
-            metric.request_count = request_count
-        else:
-            metric = Metric(
-                agent_id=None,
-                date=today,
-                token_count=token_count,
-                request_count=request_count,
-                avg_response_time_ms=0,
-                estimated_cost=token_count * 0.000002,  # 估算成本
+        try:
+            # 使用 UPDATE 或 INSERT
+            await self.db.execute(
+                update(Metric)
+                .where(Metric.date == today)
+                .values(
+                    token_count=token_count,
+                    request_count=request_count,
+                    estimated_cost=token_count * 0.000002,
+                )
             )
-            self.db.add(metric)
-        
-        await self.db.flush()
+            
+            # 如果没有更新任何行，说明今天的数据不存在，需要插入
+            result = await self.db.execute(
+                select(Metric).where(Metric.date == today)
+            )
+            if not result.scalar_one_or_none():
+                metric = Metric(
+                    agent_id=None,
+                    date=today,
+                    token_count=token_count,
+                    request_count=request_count,
+                    avg_response_time_ms=0,
+                    estimated_cost=token_count * 0.000002,
+                )
+                self.db.add(metric)
+            
+            await self.db.flush()
+        except Exception as e:
+            logger.error(f"Failed to update metrics: {e}")
     
     async def _upsert_agent(self, agent_id: str, data: dict) -> Agent:
         """更新或插入 Agent 记录"""
