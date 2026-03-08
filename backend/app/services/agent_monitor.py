@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from app.models.agent import Agent
 from app.models.session import Session
-from app.services.openclaw_client import openclaw_client
+from app.services.openclaw_parser import parse_openclaw_status, get_active_sessions
 from app.api.websocket import notify_agent_status
 from app.config import settings
 from datetime import datetime
@@ -21,19 +21,14 @@ class AgentMonitor:
         self._status_cache: Dict[str, dict] = {}
     
     async def sync_agents(self) -> List[Agent]:
-        """从 OpenClaw API 同步 Agent 状态"""
+        """从 OpenClaw 同步 Agent 状态"""
         try:
-            # 获取会话列表
-            result = await openclaw_client.sessions_list(
-                message_limit=0,
-                limit=100,
-            )
-            
-            sessions = result.get("sessions", [])
+            # 使用 openclaw status 命令获取会话列表
+            sessions = parse_openclaw_status()
             agents = []
             
             for session_data in sessions:
-                agent_id = session_data.get("id") or session_data.get("sessionKey")
+                agent_id = session_data.get("id") or session_data.get("key")
                 if not agent_id:
                     continue
                 
@@ -41,7 +36,7 @@ class AgentMonitor:
                 agent = await self._upsert_agent(agent_id, session_data)
                 agents.append(agent)
             
-            logger.info(f"Synced {len(agents)} agents")
+            logger.info(f"Synced {len(agents)} agents from OpenClaw")
             return agents
             
         except Exception as e:
@@ -93,15 +88,23 @@ class AgentMonitor:
     def _parse_status(self, data: dict) -> str:
         """解析 Agent 状态"""
         # 根据会话数据判断状态
+        age = data.get("age", "")
         kind = data.get("kind", "")
-        active_minutes = data.get("activeMinutes", 999)
         
-        if kind == "subagent" and active_minutes < 5:
+        # 如果是 subagent 且最近活跃，标记为 busy
+        if kind == "subagent" and age and "1m" in age:
             return "busy"
-        elif active_minutes > 60:
-            return "offline"
-        else:
-            return "online"
+        
+        # 根据最后活跃时间判断状态
+        if age:
+            if "now" in age or "1m" in age or "5m" in age:
+                return "online"
+            elif "10m" in age or "30m" in age or "1h" in age:
+                return "offline"
+            else:
+                return "offline"
+        
+        return "online"
     
     async def get_all_agents(self) -> List[Agent]:
         """获取所有 Agent"""

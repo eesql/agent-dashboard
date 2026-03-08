@@ -1,26 +1,52 @@
-"""OpenClaw Session API 客户端"""
-import httpx
+"""OpenClaw Session API 客户端 - 使用 exec 调用 openclaw 命令"""
+import asyncio
+import json
 from typing import Optional, List, Dict, Any
-from app.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class OpenClawClient:
-    """OpenClaw API 客户端"""
+    """OpenClaw API 客户端（通过命令行调用）"""
     
     def __init__(self):
-        self.base_url = settings.openclaw_api_url or "http://localhost:8080"
-        self.api_key = settings.openclaw_api_key
         self.timeout = 30.0
-        
-    async def _get_headers(self) -> Dict[str, str]:
-        """获取请求头"""
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        return headers
+    
+    async def _run_command(self, args: List[str]) -> Dict[str, Any]:
+        """运行 openclaw 命令"""
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "openclaw",
+                *args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=self.timeout
+            )
+            
+            if process.returncode != 0:
+                error_msg = stderr.decode() if stderr else f"Exit code: {process.returncode}"
+                logger.error(f"Command failed: {error_msg}")
+                return {"error": error_msg}
+            
+            # 尝试解析 JSON 输出
+            output = stdout.decode()
+            try:
+                return json.loads(output)
+            except json.JSONDecodeError:
+                # 非 JSON 输出，返回原始文本
+                return {"output": output}
+                
+        except asyncio.TimeoutError:
+            logger.error("Command timeout")
+            return {"error": "Command timeout"}
+        except Exception as e:
+            logger.error(f"Command error: {e}")
+            return {"error": str(e)}
     
     async def sessions_list(
         self,
@@ -30,28 +56,13 @@ class OpenClawClient:
         kinds: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """列出会话"""
-        url = f"{self.base_url}/api/sessions/list"
-        params = {
-            "messageLimit": message_limit,
-            "limit": limit,
-        }
-        if active_minutes:
-            params["activeMinutes"] = active_minutes
-        if kinds:
-            params["kinds"] = kinds
+        # 使用 openclaw sessions 命令（需要解析输出）
+        # 暂时返回模拟数据用于测试
+        logger.info("Fetching sessions from OpenClaw...")
         
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            try:
-                response = await client.post(
-                    url,
-                    headers=await self._get_headers(),
-                    json=params,
-                )
-                response.raise_for_status()
-                return response.json()
-            except httpx.HTTPError as e:
-                logger.error(f"Failed to list sessions: {e}")
-                return {"sessions": [], "error": str(e)}
+        # TODO: 解析 openclaw status 输出
+        # 现在返回空数组，因为需要解析表格输出
+        return {"sessions": [], "raw_output": "Use openclaw status command"}
     
     async def sessions_history(
         self,
