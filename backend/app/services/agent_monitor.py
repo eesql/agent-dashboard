@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from app.models.agent import Agent
 from app.models.session import Session
-from app.services.openclaw_parser import parse_openclaw_status, get_active_sessions
+from app.services.openclaw_parser import parse_openclaw_sessions, get_active_sessions
 from app.api.websocket import notify_agent_status
 from app.config import settings
 from datetime import datetime
@@ -23,8 +23,8 @@ class AgentMonitor:
     async def sync_agents(self) -> List[Agent]:
         """从 OpenClaw 同步 Agent 状态"""
         try:
-            # 使用 openclaw status 命令获取会话列表
-            sessions = parse_openclaw_status()
+            # 使用 openclaw sessions 命令获取会话列表
+            sessions = parse_openclaw_sessions()
             agents = []
             
             for session_data in sessions:
