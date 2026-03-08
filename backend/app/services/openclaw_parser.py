@@ -78,7 +78,7 @@ def parse_sessions_output(output: str) -> List[Dict[str, Any]]:
                         model = parts[3]
                         tokens = parts[4] if len(parts) > 4 else ""
                         
-                        # 跳过重复的 key 和截断的 key（包含 ?| 的是截断显示）
+                        # 跳过重复的 key（包含 ?| 的是乱码，跳过）
                         if '?|' in key or key in seen_keys:
                             continue
                         
