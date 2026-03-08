@@ -1,5 +1,6 @@
 """OpenClaw 命令输出解析器"""
 import subprocess
+import re
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 import logging
