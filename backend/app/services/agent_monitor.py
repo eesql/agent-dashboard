@@ -36,11 +36,15 @@ class AgentMonitor:
                 agent = await self._upsert_agent(agent_id, session_data)
                 agents.append(agent)
             
+            # 提交事务
+            await self.db.commit()
+            
             logger.info(f"Synced {len(agents)} agents from OpenClaw")
             return agents
             
         except Exception as e:
             logger.error(f"Failed to sync agents: {e}")
+            await self.db.rollback()
             return []
     
     async def _upsert_agent(self, agent_id: str, data: dict) -> Agent:
