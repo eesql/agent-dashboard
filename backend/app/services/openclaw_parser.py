@@ -71,12 +71,12 @@ def parse_sessions_output(output: str) -> List[Dict[str, Any]]:
                 parts = line.split()
                 if len(parts) >= 6:
                     try:
-                        # Kind = parts[0], Key = parts[1], Age = parts[2], Model = parts[3], Tokens = parts[4]
+                        # Kind = parts[0], Key = parts[1], Age = parts[2], Age unit = parts[3], Model = parts[4], Tokens = parts[5]
                         kind = parts[0]
                         key = parts[1]
-                        age = parts[2]
-                        model = parts[3]
-                        tokens = parts[4] if len(parts) > 4 else ""
+                        age = parts[2] + " " + parts[3]  # "8h ago"
+                        model = parts[4]
+                        tokens = parts[5] if len(parts) > 5 else ""  # "85k/1000k"
                         
                         # 跳过重复的 key（包含 ?| 的是乱码，跳过）
                         if '?|' in key or key in seen_keys:
