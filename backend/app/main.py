@@ -1,0 +1,83 @@
+"""FastAPI 应用入口"""
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from app.config import settings
+from app.db.database import init_db, close_db
+from app.api import agents_router, sessions_router, tool_calls_router, metrics_router
+from app.api.websocket import router as websocket_router
+import logging
+
+# 配置日志
+logging.basicConfig(
+    level=logging.DEBUG if settings.debug else logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时
+    logger.info("Starting Agent Dashboard API...")
+    await init_db()
+    logger.info("Database initialized")
+    
+    yield
+    
+    # 关闭时
+    logger.info("Shutting down Agent Dashboard API...")
+    await close_db()
+
+
+# 创建 FastAPI 应用
+app = FastAPI(
+    title="Agent Dashboard API",
+    description="OpenClaw Agent 状态和行为监控 API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# CORS 配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.frontend_url, "http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 注册路由
+app.include_router(agents_router)
+app.include_router(sessions_router)
+app.include_router(tool_calls_router)
+app.include_router(metrics_router)
+app.include_router(websocket_router)
+
+
+@app.get("/")
+async def root():
+    """根端点"""
+    return {
+        "name": "Agent Dashboard API",
+        "version": "0.1.0",
+        "status": "running",
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """健康检查"""
+    return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    uvicorn.run(
+        "app.main:app",
+        host=settings.backend_host,
+        port=settings.backend_port,
+        reload=settings.debug,
+    )
