@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from app.models.agent import Agent
 from app.models.session import Session
-from app.services.openclaw_parser import parse_openclaw_sessions, get_active_sessions
+from app.services.openclaw_parser import parse_openclaw_sessions
 from app.api.websocket import notify_agent_status
 from app.config import settings
 from datetime import datetime

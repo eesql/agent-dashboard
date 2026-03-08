@@ -62,6 +62,7 @@ def parse_sessions_output(output: str) -> List[Dict[str, Any]]:
     try:
         sessions = []
         lines = output.split('\n')
+        seen_keys = set()
         
         for line in lines:
             # 匹配数据行（以 direct/other 开头的行）
@@ -74,6 +75,12 @@ def parse_sessions_output(output: str) -> List[Dict[str, Any]]:
                         key = parts[1]
                         age = parts[2]
                         model = parts[3]
+                        
+                        # 跳过重复的 key 和截断的 key（包含 ?| 的是截断显示）
+                        if '?|' in key or key in seen_keys:
+                            continue
+                        
+                        seen_keys.add(key)
                         
                         sessions.append({
                             "id": key,
@@ -88,7 +95,7 @@ def parse_sessions_output(output: str) -> List[Dict[str, Any]]:
                         logger.debug(f"Failed to parse line: {line}, error: {e}")
                         continue
         
-        logger.info(f"Parsed {len(sessions)} sessions from openclaw sessions")
+        logger.info(f"Parsed {len(sessions)} unique sessions from openclaw sessions")
         return sessions
         
     except Exception as e:
