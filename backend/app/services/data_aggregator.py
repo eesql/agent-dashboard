@@ -120,7 +120,7 @@ class DataAggregator:
         # Agent 统计
         agents_query = select(
             func.count(Agent.id),
-            func.count(Agent.id).filter(Agent.status == "online"),
+            func.count(Agent.id).filter(Agent.status.in_(["online", "busy"])),
         )
         agents_result = await self.db.execute(agents_query)
         agents_row = agents_result.first()
