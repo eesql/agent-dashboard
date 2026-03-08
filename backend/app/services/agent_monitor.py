@@ -34,17 +34,21 @@ class AgentMonitor:
                     continue
                 
                 # 累加 token 数
-                total_tokens += session_data.get("tokens", 0)
+                tokens = session_data.get("tokens", 0)
+                total_tokens += tokens
                 
                 # 更新或创建 Agent 记录
                 agent = await self._upsert_agent(agent_id, session_data)
                 agents.append(agent)
             
-            # 更新 metrics 统计数据
-            await self._update_metrics(total_tokens, len(agents))
-            
-            # 提交事务
+            # 提交事务（先提交 agent 更新，避免长时间持有锁）
             await self.db.commit()
+            
+            # 单独更新 metrics（使用新的事务）
+            try:
+                await self._update_metrics_simple(total_tokens, len(agents))
+            except Exception as e:
+                logger.error(f"Failed to update metrics: {e}")
             
             logger.info(f"Synced {len(agents)} agents from OpenClaw, total tokens: {total_tokens}")
             return agents
@@ -54,44 +58,38 @@ class AgentMonitor:
             await self.db.rollback()
             return []
     
-    async def _update_metrics(self, token_count: int, request_count: int):
-        """更新统计数据"""
+    async def _update_metrics_simple(self, token_count: int, request_count: int):
+        """简单更新统计数据（避免锁竞争）"""
         from app.models.metric import Metric
         from datetime import date
         from sqlalchemy import update
         
         today = date.today()
         
-        try:
-            # 使用 UPDATE 或 INSERT
-            await self.db.execute(
-                update(Metric)
-                .where(Metric.date == today)
-                .values(
-                    token_count=token_count,
-                    request_count=request_count,
-                    estimated_cost=token_count * 0.000002,
-                )
+        # 直接使用 execute 更新，不查询
+        result = await self.db.execute(
+            update(Metric)
+            .where(Metric.date == today)
+            .values(
+                token_count=token_count,
+                request_count=request_count,
+                estimated_cost=token_count * 0.000002,
             )
-            
-            # 如果没有更新任何行，说明今天的数据不存在，需要插入
-            result = await self.db.execute(
-                select(Metric).where(Metric.date == today)
+        )
+        
+        # 如果没有更新任何行，插入新记录
+        if result.rowcount == 0:
+            metric = Metric(
+                agent_id=None,
+                date=today,
+                token_count=token_count,
+                request_count=request_count,
+                avg_response_time_ms=0,
+                estimated_cost=token_count * 0.000002,
             )
-            if not result.scalar_one_or_none():
-                metric = Metric(
-                    agent_id=None,
-                    date=today,
-                    token_count=token_count,
-                    request_count=request_count,
-                    avg_response_time_ms=0,
-                    estimated_cost=token_count * 0.000002,
-                )
-                self.db.add(metric)
-            
-            await self.db.flush()
-        except Exception as e:
-            logger.error(f"Failed to update metrics: {e}")
+            self.db.add(metric)
+        
+        await self.db.commit()
     
     async def _upsert_agent(self, agent_id: str, data: dict) -> Agent:
         """更新或插入 Agent 记录"""

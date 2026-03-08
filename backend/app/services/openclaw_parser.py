@@ -84,13 +84,20 @@ def parse_sessions_output(output: str) -> List[Dict[str, Any]]:
                         
                         seen_keys.add(key)
                         
-                        # 解析 token 数
+                        # 解析 token 数（格式如 "85k/1000k (8%)"）
                         token_count = 0
                         if tokens and '/' in tokens:
                             try:
-                                token_count = int(tokens.split('/')[0].replace('k', '000').replace('M', '000000'))
-                            except:
-                                pass
+                                token_str = tokens.split('/')[0]  # "85k"
+                                if 'k' in token_str:
+                                    token_count = int(float(token_str.replace('k', '')) * 1000)
+                                elif 'M' in token_str:
+                                    token_count = int(float(token_str.replace('M', '')) * 1000000)
+                                else:
+                                    token_count = int(token_str)
+                                logger.debug(f"Parsed token: {tokens} -> {token_count}")
+                            except Exception as e:
+                                logger.debug(f"Failed to parse token '{tokens}': {e}")
                         
                         sessions.append({
                             "id": key,
