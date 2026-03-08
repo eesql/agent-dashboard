@@ -127,8 +127,11 @@ class DataAggregator:
         
         return {
             "today": {
+                "agent_id": None,
+                "date": date.today(),
                 "token_count": today_row[0] or 0,
                 "request_count": today_row[1] or 0,
+                "avg_response_time_ms": 0,
                 "estimated_cost": float(today_row[2] or 0),
             },
             "this_week": {
