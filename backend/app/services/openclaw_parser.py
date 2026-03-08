@@ -69,13 +69,14 @@ def parse_sessions_output(output: str) -> List[Dict[str, Any]]:
             # 匹配数据行（以 direct/other 开头的行）
             if line.strip().startswith('direct') or line.strip().startswith('other'):
                 parts = line.split()
-                if len(parts) >= 5:
+                if len(parts) >= 6:
                     try:
-                        # Kind = parts[0], Key = parts[1], Age = parts[2], Model = parts[3]
+                        # Kind = parts[0], Key = parts[1], Age = parts[2], Model = parts[3], Tokens = parts[4]
                         kind = parts[0]
                         key = parts[1]
                         age = parts[2]
                         model = parts[3]
+                        tokens = parts[4] if len(parts) > 4 else ""
                         
                         # 跳过重复的 key 和截断的 key（包含 ?| 的是截断显示）
                         if '?|' in key or key in seen_keys:
@@ -83,14 +84,23 @@ def parse_sessions_output(output: str) -> List[Dict[str, Any]]:
                         
                         seen_keys.add(key)
                         
+                        # 解析 token 数
+                        token_count = 0
+                        if tokens and '/' in tokens:
+                            try:
+                                token_count = int(tokens.split('/')[0].replace('k', '000').replace('M', '000000'))
+                            except:
+                                pass
+                        
                         sessions.append({
                             "id": key,
                             "key": key,
                             "kind": kind,
                             "age": age,
                             "model": model,
+                            "tokens": token_count,
                             "last_seen": parse_age_to_datetime(age).isoformat(),
-                            "status": "online" if age and ("now" in age or "1m" in age or "5m" in age or "10m" in age) else "offline",
+                            "status": "online" if age and ("now" in age or "1m" in age or "2m" in age or "3m" in age or "4m" in age or "5m" in age) else "offline",
                         })
                     except Exception as e:
                         logger.debug(f"Failed to parse line: {line}, error: {e}")
