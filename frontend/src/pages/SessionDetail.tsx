@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ToolCallTimeline } from '@/components/dashboard/ToolCallTimeline';
+import { MessageList } from '@/components/session/MessageList';
 import { 
   ArrowLeft, 
   MessageSquare, 
@@ -202,7 +203,7 @@ export const SessionDetail: React.FC = () => {
       {/* 工具调用时间线 */}
       <ToolCallTimeline toolCalls={toolCalls} limit={10} />
 
-      {/* 消息历史（待实现） */}
+      {/* 消息历史 */}
       <Card>
         <div className="flex items-center gap-2 mb-4">
           <Code size={18} className="text-primary-500" />
@@ -210,13 +211,7 @@ export const SessionDetail: React.FC = () => {
             消息历史
           </h2>
         </div>
-        <div className="text-center py-8 text-text-secondary">
-          <MessageSquare size={48} className="mx-auto mb-3 text-text-muted" />
-          <p>消息历史功能开发中...</p>
-          <p className="text-sm text-text-muted mt-1">
-            将显示会话的完整对话记录
-          </p>
-        </div>
+        <MessageList sessionId={sessionId} />
       </Card>
     </div>
   );
