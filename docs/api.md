@@ -126,6 +126,37 @@
 
 获取今日统计。
 
+#### GET /api/metrics/trend
+
+获取趋势数据（过去 N 天的统计数据）。
+
+**查询参数:**
+- `days` (integer, default: 7, min: 1, max: 30): 查询天数
+- `agent_id` (string, optional): 按 Agent 过滤
+
+**响应示例:**
+```json
+[
+  {
+    "date": "2026-03-01",
+    "token_count": 50000,
+    "request_count": 100,
+    "estimated_cost": 0.1
+  },
+  {
+    "date": "2026-03-02",
+    "token_count": 75000,
+    "request_count": 150,
+    "estimated_cost": 0.15
+  }
+]
+```
+
+**说明:**
+- 返回按日期排序的数组
+- 自动填充空白日期（补零）
+- 用于 Token 消耗趋势图表
+
 ---
 
 ## 错误响应
