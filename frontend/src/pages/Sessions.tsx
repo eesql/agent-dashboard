@@ -6,14 +6,12 @@ import { useNavigate } from 'react-router-dom';
 import { sessionApi } from '@/services/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { 
   MessageSquare, 
   Clock, 
   Search, 
   Filter,
   RefreshCw,
-  Calendar,
   User
 } from 'lucide-react';
 import type { Session } from '@/types';
@@ -33,7 +31,7 @@ export const Sessions: React.FC = () => {
     setError(null);
     try {
       const result = await sessionApi.list({ limit: 100 });
-      setSessions(result.sessions || []);
+      setSessions(result.data.sessions || []);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch sessions');
     } finally {
@@ -135,13 +133,13 @@ export const Sessions: React.FC = () => {
           <div className="flex items-center gap-2">
             <Filter size={18} className="text-text-muted" />
             <select
-              value={filterKind}
+              value={filterKind || ''}
               onChange={(e) => setFilterKind(e.target.value)}
               className="input w-auto"
             >
               <option value="all">全部类型</option>
               {uniqueKinds.map(kind => (
-                <option key={kind} value={kind}>{kind}</option>
+                <option key={kind} value={kind || ''}>{kind || 'unknown'}</option>
               ))}
             </select>
           </div>

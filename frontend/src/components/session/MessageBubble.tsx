@@ -2,7 +2,7 @@
  * 消息气泡组件
  */
 import React from 'react';
-import { MessageSquare, Tool, Code, FileText, Image } from 'lucide-react';
+import { MessageSquare, Wrench, FileText } from 'lucide-react';
 import type { Message } from '@/types';
 
 interface MessageBubbleProps {
@@ -20,7 +20,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     return (
       <div className="flex items-start gap-3 p-4 bg-primary-500/10 rounded-lg border border-primary-500/20">
         <div className="p-2 bg-primary-500/20 rounded-lg">
-          <Tool size={16} className="text-primary-500" />
+          <Wrench size={16} className="text-primary-500" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -73,7 +73,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     return (
       <div className="flex items-start gap-3 p-4 bg-bg-tertiary rounded-lg border border-border-default">
         <div className="p-2 bg-bg-tertiary rounded-lg">
-          <Tool size={16} className="text-text-muted" />
+          <Wrench size={16} className="text-text-muted" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm text-text-primary whitespace-pre-wrap">

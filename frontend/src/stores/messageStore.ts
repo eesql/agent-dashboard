@@ -2,21 +2,8 @@
  * 消息 Store
  */
 import { create } from 'zustand';
-import { api } from '@/services/api';
-
-export interface Message {
-  id: number;
-  session_id: string;
-  role: string;
-  content: string | null;
-  tool_call_id: string | null;
-  tool_name: string | null;
-  tool_args: Record<string, any> | null;
-  tool_result: string | null;
-  is_tool_call: boolean;
-  is_tool_result: boolean;
-  timestamp: string;
-}
+import { messageApi } from '@/services/api';
+import type { Message } from '@/types';
 
 interface MessageState {
   messages: Message[];
@@ -40,12 +27,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   fetchMessages: async (sessionId: string, params?: { limit?: number; offset?: number }) => {
     set({ loading: true, error: null });
     try {
-      const queryParams = new URLSearchParams();
-      if (params?.limit) queryParams.append('limit', params.limit.toString());
-      if (params?.offset) queryParams.append('offset', params.offset.toString());
-      
-      const response = await api.get(`/api/sessions/${sessionId}/messages?${queryParams}`);
-      const data = await response.json();
+      const res = await messageApi.list(sessionId, params);
+      const data = res.data;
       
       set({
         messages: data.messages || [],
@@ -63,9 +46,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   syncMessages: async (sessionId: string) => {
     try {
-      const response = await api.post(`/api/sessions/${sessionId}/messages/sync`);
-      const data = await response.json();
-      console.log('Messages synced:', data);
+      await messageApi.sync(sessionId);
+      console.log('Messages synced');
       
       // 同步后重新获取消息
       await get().fetchMessages(sessionId);

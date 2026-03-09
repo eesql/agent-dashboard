@@ -19,7 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import type { Session, ToolCall, Message } from '@/types';
-import { sessionApi, messageApi } from '@/services/api';
+import { sessionApi, messageApi, toolCallApi } from '@/services/api';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -47,8 +47,8 @@ export const SessionDetail: React.FC = () => {
         setSession(sessionRes.data);
         
         // 获取工具调用
-        const toolCallsRes = await sessionApi.list({ limit: 20 });
-        setToolCalls(toolCallsRes.data.sessions || []);
+        const toolCallsRes = await toolCallApi.list({ session_id: sessionId, limit: 20 });
+        setToolCalls(toolCallsRes.data.tool_calls || []);
         
         // 获取消息历史
         await fetchMessages(0);
@@ -227,7 +227,7 @@ export const SessionDetail: React.FC = () => {
       <ToolCallTimeline toolCalls={toolCalls} limit={10} />
 
       {/* 消息历史 */}
-      <Card className="flex flex-col" style={{ height: '500px' }}>
+      <Card className="flex flex-col h-96">
         <div className="flex items-center gap-2 mb-4 p-4 border-b border-border-default">
           <Code size={18} className="text-primary-500" />
           <h2 className="text-lg font-semibold text-text-primary">

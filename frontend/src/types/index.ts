@@ -84,7 +84,10 @@ export interface ApiResponse<T> {
 }
 
 export interface ListResponse<T> {
-  [key: string]: T[];
+  sessions?: T[];
+  messages?: T[];
+  tool_calls?: T[];
+  [key: string]: T[] | number | undefined;
   total: number;
 }
 
