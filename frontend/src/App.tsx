@@ -3,51 +3,56 @@
  */
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import { ThemeProvider } from '@/context/ThemeContext';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Dashboard } from '@/pages/Dashboard';
 import { Sessions } from '@/pages/Sessions';
 import { SessionDetail } from '@/pages/SessionDetail';
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-bg-primary">
-        {/* 顶部导航栏 */}
-        <header className="border-b border-border-default bg-bg-secondary sticky top-0 z-50">
-          <div className="container mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">AD</span>
+    <ThemeProvider>
+      <BrowserRouter>
+        <div className="min-h-screen bg-bg-primary">
+          {/* 顶部导航栏 */}
+          <header className="border-b border-border-default bg-bg-secondary sticky top-0 z-50">
+            <div className="container mx-auto px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">AD</span>
+                  </div>
+                  <h1 className="text-xl font-bold text-text-primary">
+                    Agent Dashboard
+                  </h1>
                 </div>
-                <h1 className="text-xl font-bold text-text-primary">
-                  Agent Dashboard
-                </h1>
-              </div>
-              <div className="flex items-center gap-6">
-                <NavLinks />
-                <a 
-                  href="/api/docs" 
-                  target="_blank"
-                  className="text-sm text-text-secondary hover:text-primary-500 transition-colors"
-                >
-                  API Docs
-                </a>
+                <div className="flex items-center gap-6">
+                  <NavLinks />
+                  <ThemeToggle />
+                  <a 
+                    href="/api/docs" 
+                    target="_blank"
+                    className="text-sm text-text-secondary hover:text-primary-500 transition-colors"
+                  >
+                    API Docs
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* 主内容区 */}
-        <main className="container mx-auto">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/sessions" element={<Sessions />} />
-            <Route path="/sessions/:sessionId" element={<SessionDetail />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+          {/* 主内容区 */}
+          <main className="container mx-auto">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/sessions" element={<Sessions />} />
+              <Route path="/sessions/:sessionId" element={<SessionDetail />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+        </div>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 };
 
