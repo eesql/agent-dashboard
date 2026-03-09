@@ -4,6 +4,7 @@
 import React, { useEffect } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { useMetricsStore } from '@/stores/metricsStore';
+import { useToolCallStore } from '@/stores/toolCallStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { AgentCard } from '@/components/dashboard/AgentCard';
 import { MetricsCard } from '@/components/dashboard/MetricsCard';
@@ -24,50 +25,24 @@ export const Dashboard: React.FC = () => {
     fetchAgents, 
     syncAgents,
     getOnlineAgents,
-    handleWebSocketMessage,
     clearError,
     clearSyncMessage
   } = useAgentStore();
   
   const { 
     summary, 
-    loading: metricsLoading,
-    fetchSummary 
+    trendData,
+    fetchSummary,
+    fetchTrendData,
   } = useMetricsStore();
-
-  // 模拟工具调用数据（待真实 API）
-  const mockToolCalls = [
-    {
-      id: 1,
-      session_id: 'session-1',
-      tool_name: 'read',
-      tool_args: { path: './src/App.tsx' },
-      result_summary: 'Read 150 lines from App.tsx',
-      timestamp: new Date().toISOString(),
-      duration_ms: 45,
-    },
-    {
-      id: 2,
-      session_id: 'session-1',
-      tool_name: 'exec',
-      tool_args: { command: 'npm install' },
-      result_summary: 'Installed 304 packages',
-      timestamp: new Date(Date.now() - 300000).toISOString(),
-      duration_ms: 15230,
-    },
-    {
-      id: 3,
-      session_id: 'session-2',
-      tool_name: 'web_search',
-      tool_args: { query: 'React best practices' },
-      result_summary: 'Found 10 search results',
-      timestamp: new Date(Date.now() - 600000).toISOString(),
-      duration_ms: 1250,
-    },
-  ];
+  
+  const { 
+    toolCalls, 
+    fetchToolCalls,
+  } = useToolCallStore();
 
   // WebSocket 连接
-  const { isConnected, lastMessage } = useWebSocket({
+  const { isConnected } = useWebSocket({
     url: 'ws://localhost:8000/ws',
     onConnect: () => {
       console.log('[Dashboard] WebSocket connected');
@@ -75,23 +50,21 @@ export const Dashboard: React.FC = () => {
     onDisconnect: () => {
       console.log('[Dashboard] WebSocket disconnected');
     },
-    onMessage: (message) => {
-      // 处理 Agent 状态更新
-      if (message.type === 'agent:status') {
-        handleWebSocketMessage(message);
-      }
-    },
   });
 
   useEffect(() => {
     // 初始加载
     fetchAgents();
     fetchSummary();
+    fetchTrendData(7); // 获取过去 7 天的趋势数据
+    fetchToolCalls({ limit: 20, hours: 24 }); // 获取最近 20 条工具调用记录
     
     // 定时刷新（每 30 秒）
     const interval = setInterval(() => {
       fetchAgents();
       fetchSummary();
+      fetchTrendData(7);
+      fetchToolCalls({ limit: 20, hours: 24 });
     }, 30000);
     
     return () => clearInterval(interval);
@@ -213,10 +186,17 @@ export const Dashboard: React.FC = () => {
       {/* 统计图表 + 工具调用时间线 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 统计图表 */}
-        <StatsChart type="tokens" period="week" />
+        <StatsChart 
+          data={trendData || undefined} 
+          type="tokens" 
+          period="week" 
+        />
         
         {/* 工具调用时间线 */}
-        <ToolCallTimeline toolCalls={mockToolCalls as any} limit={5} />
+        <ToolCallTimeline 
+          toolCalls={toolCalls} 
+          limit={5} 
+        />
       </div>
 
       {/* Sessions 快捷入口 */}

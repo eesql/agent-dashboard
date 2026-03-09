@@ -4,10 +4,6 @@
 import React from 'react';
 import { Card } from '@/components/ui/Card';
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -17,6 +13,7 @@ import {
   Area,
 } from 'recharts';
 import { Activity, TrendingUp } from 'lucide-react';
+import type { TrendDataPoint } from '@/types';
 
 interface ChartData {
   date: string;
@@ -26,12 +23,22 @@ interface ChartData {
 }
 
 interface StatsChartProps {
-  data?: ChartData[];
+  data?: TrendDataPoint[];
   type?: 'tokens' | 'requests' | 'cost';
   period?: 'day' | 'week' | 'month';
 }
 
-// 模拟数据（实际应从 API 获取）
+// 将 API 数据转换为图表数据格式
+const convertToChartData = (trendData: TrendDataPoint[]): ChartData[] => {
+  return trendData.map(item => ({
+    date: item.date.slice(5), // 截取 MM-DD 部分
+    tokens: item.token_count,
+    requests: item.request_count,
+    cost: item.estimated_cost,
+  }));
+};
+
+// 模拟数据（仅用于调试，实际应从 API 获取）
 const generateMockData = (period: string): ChartData[] => {
   const data: ChartData[] = [];
   const now = new Date();
@@ -60,7 +67,8 @@ export const StatsChart: React.FC<StatsChartProps> = ({
   type = 'tokens',
   period = 'week',
 }) => {
-  const chartData = data || generateMockData(period);
+  // 优先使用 API 数据，如果没有则使用模拟数据
+  const chartData = data ? convertToChartData(data) : generateMockData(period);
 
   const getTitle = () => {
     switch (type) {

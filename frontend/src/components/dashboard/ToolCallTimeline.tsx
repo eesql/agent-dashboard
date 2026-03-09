@@ -12,8 +12,6 @@ import {
   Search,
   Code,
   Play,
-  CheckCircle,
-  AlertCircle,
   Clock
 } from 'lucide-react';
 import type { ToolCall } from '@/types';
@@ -109,7 +107,7 @@ export const ToolCallTimeline: React.FC<ToolCallTimelineProps> = ({
       </div>
 
       <div className="space-y-3">
-        {recentCalls.map((call, index) => {
+        {recentCalls.map((call) => {
           const Icon = getToolIcon(call.tool_name);
           const colorClass = getToolColor(call.tool_name);
 

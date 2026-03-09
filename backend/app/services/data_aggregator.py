@@ -6,7 +6,8 @@ from app.models.session import Session
 from app.models.tool_call import ToolCall
 from app.models.metric import Metric
 from datetime import datetime, date, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, List
+from sqlalchemy.orm import selectinload
 import logging
 
 logger = logging.getLogger(__name__)
@@ -147,6 +148,61 @@ class DataAggregator:
             "total_agents": agents_row[0] or 0,
             "active_agents": agents_row[1] or 0,
         }
+    
+    async def get_trend_data(
+        self,
+        days: int = 7,
+        agent_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """获取趋势数据（过去 N 天）"""
+        today = date.today()
+        start_date = today - timedelta(days=days - 1)
+        
+        # 查询指定日期范围内的数据
+        query = select(
+            Metric.date,
+            func.sum(Metric.token_count).label("token_count"),
+            func.sum(Metric.request_count).label("request_count"),
+            func.sum(Metric.estimated_cost).label("estimated_cost"),
+        ).where(
+            and_(
+                Metric.date >= start_date,
+                Metric.date <= today,
+            )
+        )
+        
+        if agent_id:
+            query = query.where(Metric.agent_id == agent_id)
+        
+        query = query.group_by(Metric.date).order_by(Metric.date)
+        
+        result = await self.db.execute(query)
+        rows = result.all()
+        
+        # 构建完整的数据（包括没有数据的日期）
+        trend_data = []
+        date_map = {row.date: row for row in rows}
+        
+        for i in range(days):
+            current_date = start_date + timedelta(days=i)
+            row = date_map.get(current_date)
+            
+            if row:
+                trend_data.append({
+                    "date": current_date.isoformat(),
+                    "token_count": row.token_count or 0,
+                    "request_count": row.request_count or 0,
+                    "estimated_cost": float(row.estimated_cost or 0),
+                })
+            else:
+                trend_data.append({
+                    "date": current_date.isoformat(),
+                    "token_count": 0,
+                    "request_count": 0,
+                    "estimated_cost": 0.0,
+                })
+        
+        return trend_data
     
     async def get_tool_calls_by_session(
         self,

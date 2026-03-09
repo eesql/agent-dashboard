@@ -4,7 +4,6 @@
 import { create } from 'zustand';
 import { agentApi } from '@/services/api';
 import type { Agent } from '@/types';
-import type { WebSocketMessage } from '@/hooks/useWebSocket';
 
 interface AgentState {
   agents: Agent[];
@@ -32,7 +31,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   fetchAgents: async () => {
     set({ loading: true, error: null });
     try {
-      const agents = await agentApi.list();
+      const agents = await agentApi.list() as unknown as Agent[];
       set({ agents, loading: false, lastSync: new Date() });
     } catch (error: any) {
       set({ 
@@ -45,13 +44,13 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   syncAgents: async () => {
     set({ loading: true, error: null });
     try {
-      const result = await agentApi.sync();
+      const result = await agentApi.sync() as unknown as { success: boolean; synced: number; agents?: Agent[]; synced_agents?: number; error?: string };
       if (result.success) {
         set({ 
           agents: result.agents || get().agents, 
           loading: false, 
           lastSync: new Date(),
-          syncMessage: `同步成功：${result.synced_agents} 个 Agent`
+          syncMessage: `同步成功：${result.synced || result.synced_agents || 0} 个 Agent`
         });
       } else {
         throw new Error(result.error || 'Sync failed');
@@ -64,24 +63,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     }
   },
   
-  /** 处理 WebSocket 消息 */
-  handleWebSocketMessage: (message: WebSocketMessage) => {
-    if (message.type === 'agent:status') {
-      const updatedAgent = message.data as Agent;
-      const agents = get().agents;
-      const index = agents.findIndex(a => a.id === updatedAgent.id);
-      
-      if (index >= 0) {
-        // 更新现有 Agent
-        const newAgents = [...agents];
-        newAgents[index] = updatedAgent;
-        set({ agents: newAgents });
-      } else {
-        // 添加新 Agent
-        set({ agents: [...agents, updatedAgent] });
-      }
-    }
-  },
+
   
   getAgent: (agentId: string) => {
     return get().agents.find(a => a.id === agentId);

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from app.models.agent import Agent
 from app.models.session import Session
+from app.models.tool_call import ToolCall
 from app.services.openclaw_parser import parse_openclaw_sessions
 from app.api.websocket import notify_agent_status
 from app.config import settings
@@ -24,11 +25,11 @@ class AgentMonitor:
         """从 OpenClaw 同步 Agent 状态"""
         try:
             # 使用 openclaw sessions 命令获取会话列表
-            sessions = parse_openclaw_sessions()
+            sessions_data = parse_openclaw_sessions()
             agents = []
             total_tokens = 0
             
-            for session_data in sessions:
+            for session_data in sessions_data:
                 agent_id = session_data.get("id") or session_data.get("key")
                 if not agent_id:
                     continue
@@ -40,6 +41,9 @@ class AgentMonitor:
                 # 更新或创建 Agent 记录
                 agent = await self._upsert_agent(agent_id, session_data)
                 agents.append(agent)
+                
+                # 同步保存 Session 记录
+                await self._upsert_session(agent_id, session_data)
             
             # 提交事务（先提交 agent 更新，避免长时间持有锁）
             await self.db.commit()
@@ -49,6 +53,12 @@ class AgentMonitor:
                 await self._update_metrics_simple(total_tokens, len(agents))
             except Exception as e:
                 logger.error(f"Failed to update metrics: {e}")
+            
+            # 同步工具调用记录（异步，不阻塞）
+            try:
+                await self._sync_tool_calls(sessions_data[:5])  # 只同步最近 5 个 session
+            except Exception as e:
+                logger.error(f"Failed to sync tool calls: {e}")
             
             logger.info(f"Synced {len(agents)} agents from OpenClaw, total tokens: {total_tokens}")
             return agents
@@ -90,6 +100,73 @@ class AgentMonitor:
             self.db.add(metric)
         
         await self.db.commit()
+    
+    async def _sync_tool_calls(self, sessions_data: List[Dict[str, Any]]):
+        """同步工具调用记录"""
+        from app.services.openclaw_parser import parse_session_jsonl
+        
+        tool_calls_count = 0
+        
+        for session_data in sessions_data:
+            session_key = session_data.get("id") or session_data.get("key")
+            session_file = session_data.get("sessionFile")
+            
+            if not session_key or not session_file:
+                continue
+            
+            try:
+                # 解析 session 的 jsonl 文件
+                tool_calls = parse_session_jsonl(session_file, session_key)
+                
+                # 保存工具调用到数据库
+                for tc in tool_calls:
+                    await self._upsert_tool_call(tc)
+                    tool_calls_count += 1
+                    
+            except Exception as e:
+                logger.debug(f"Failed to sync tool calls for session {session_key}: {e}")
+        
+        logger.info(f"Synced {tool_calls_count} tool calls")
+    
+    async def _upsert_tool_call(self, tool_call_data: Dict[str, Any]):
+        """更新或插入 Tool Call 记录"""
+        session_id = tool_call_data.get("session_id")
+        tool_name = tool_call_data.get("tool_name")
+        timestamp_str = tool_call_data.get("timestamp")
+        
+        if not session_id or not tool_name:
+            return
+        
+        # 解析时间戳
+        timestamp = datetime.now()
+        if timestamp_str:
+            try:
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            except:
+                pass
+        
+        # 检查是否已存在（避免重复）
+        result = await self.db.execute(
+            select(ToolCall).where(
+                ToolCall.session_id == session_id,
+                ToolCall.tool_name == tool_name,
+                ToolCall.timestamp == timestamp
+            )
+        )
+        existing = result.scalar_one_or_none()
+        
+        if not existing:
+            # 创建新记录
+            tool_call = ToolCall(
+                session_id=session_id,
+                tool_name=tool_name,
+                tool_args=tool_call_data.get("tool_args"),
+                result_summary=tool_call_data.get("result_summary"),
+                timestamp=timestamp,
+                duration_ms=tool_call_data.get("duration_ms"),
+            )
+            self.db.add(tool_call)
+            await self.db.flush()
     
     async def _upsert_agent(self, agent_id: str, data: dict) -> Agent:
         """更新或插入 Agent 记录"""
@@ -135,6 +212,44 @@ class AgentMonitor:
             })
         
         return agent
+    
+    async def _upsert_session(self, session_id: str, data: dict):
+        """更新或插入 Session 记录"""
+        # 尝试获取现有记录
+        result = await self.db.execute(
+            select(Session).where(Session.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        
+        # 解析 last_activity 时间
+        last_seen_str = data.get("last_seen", "")
+        last_activity = None
+        if last_seen_str:
+            try:
+                last_activity = datetime.fromisoformat(last_seen_str)
+            except:
+                last_activity = datetime.now()
+        else:
+            last_activity = datetime.now()
+        
+        if session:
+            # 更新现有记录
+            session.last_activity = last_activity
+            session.message_count = data.get("tokens", 0)  # 暂时用 tokens 作为 message_count 的代理
+        else:
+            # 创建新记录
+            session = Session(
+                id=session_id,
+                agent_id=session_id.split(":")[1] if ":" in session_id else None,  # 提取 agent 部分
+                label=data.get("model"),
+                kind=data.get("kind", "direct"),
+                created_at=last_activity,
+                last_activity=last_activity,
+                message_count=data.get("tokens", 0),
+            )
+            self.db.add(session)
+        
+        await self.db.flush()
     
     def _parse_status(self, data: dict) -> str:
         """解析 Agent 状态"""

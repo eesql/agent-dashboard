@@ -69,6 +69,14 @@ export interface MetricsSummary {
   active_agents: number;
 }
 
+// Trend Data 接口
+export interface TrendDataPoint {
+  date: string;
+  token_count: number;
+  request_count: number;
+  estimated_cost: number;
+}
+
 // API 响应类型
 export interface ApiResponse<T> {
   data?: T;

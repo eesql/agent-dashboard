@@ -1,7 +1,8 @@
 """OpenClaw 命令输出解析器"""
 import subprocess
 import re
-from typing import List, Dict, Any
+import json
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
 
@@ -118,4 +119,75 @@ def parse_sessions_output(output: str) -> List[Dict[str, Any]]:
         
     except Exception as e:
         logger.error(f"Failed to parse sessions output: {e}")
+        return []
+
+
+def parse_session_jsonl(session_file: str, session_key: str) -> List[Dict[str, Any]]:
+    """解析 session 的 jsonl 文件，提取工具调用"""
+    import os
+    tool_calls = []
+    
+    try:
+        if not os.path.exists(session_file):
+            logger.debug(f"Session file not found: {session_file}")
+            return []
+        
+        with open(session_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                try:
+                    entry = json.loads(line)
+                    
+                    # 检查是否是工具调用消息
+                    if entry.get('type') == 'message':
+                        msg = entry.get('message', {})
+                        content = msg.get('content', [])
+                        
+                        # 查找 toolCall 类型的内容
+                        for item in content:
+                            if isinstance(item, dict) and item.get('type') == 'toolCall':
+                                tool_call = {
+                                    "session_id": session_key,
+                                    "tool_name": item.get('name', 'unknown'),
+                                    "tool_args": item.get('arguments', {}),
+                                    "result_summary": None,
+                                    "timestamp": entry.get('timestamp', datetime.now().isoformat()),
+                                    "duration_ms": None,
+                                    "tool_call_id": item.get('id'),
+                                }
+                                tool_calls.append(tool_call)
+                            
+                            # 查找工具返回结果
+                            elif isinstance(item, dict) and item.get('type') == 'toolResult':
+                                # 查找对应的 toolCall
+                                tool_call_id = item.get('toolCallId')
+                                content_text = ''
+                                if isinstance(item.get('content'), list):
+                                    for c in item['content']:
+                                        if isinstance(c, dict) and c.get('type') == 'text':
+                                            content_text = c.get('text', '')[:200]
+                                            break
+                                
+                                tool_call = {
+                                    "session_id": session_key,
+                                    "tool_name": item.get('toolName', 'unknown'),
+                                    "tool_args": None,
+                                    "result_summary": content_text,
+                                    "timestamp": entry.get('timestamp', datetime.now().isoformat()),
+                                    "duration_ms": None,
+                                    "tool_call_id": tool_call_id,
+                                }
+                                tool_calls.append(tool_call)
+                    
+                except json.JSONDecodeError:
+                    continue
+        
+        logger.info(f"Parsed {len(tool_calls)} tool calls from {session_file}")
+        return tool_calls
+        
+    except Exception as e:
+        logger.error(f"Failed to parse session jsonl: {e}")
         return []

@@ -2,7 +2,10 @@
 import asyncio
 import json
 from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
 import logging
+
+from app.services.openclaw_parser import parse_openclaw_sessions
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +59,66 @@ class OpenClawClient:
         kinds: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """列出会话"""
-        # 使用 openclaw sessions 命令（需要解析输出）
-        # 暂时返回模拟数据用于测试
         logger.info("Fetching sessions from OpenClaw...")
         
-        # TODO: 解析 openclaw status 输出
-        # 现在返回空数组，因为需要解析表格输出
-        return {"sessions": [], "raw_output": "Use openclaw status command"}
+        # 使用 openclaw_parser 解析 sessions
+        sessions = parse_openclaw_sessions()
+        
+        # 过滤和限制结果
+        if kinds:
+            sessions = [s for s in sessions if s.get('kind') in kinds]
+        
+        if active_minutes:
+            # 只返回活跃时间内的 sessions
+            cutoff = datetime.now() - timedelta(minutes=active_minutes)
+            sessions = [
+                s for s in sessions 
+                if datetime.fromisoformat(s.get('last_seen', '2000-01-01')) > cutoff
+            ]
+        
+        return {"sessions": sessions[:limit]}
+    
+    async def sessions_history(
+        self,
+        session_key: str,
+        limit: int = 50,
+    ) -> Dict[str, Any]:
+        """获取会话历史记录"""
+        logger.info(f"Fetching history for session: {session_key}")
+        
+        try:
+            # 使用 PowerShell 调用 openclaw sessions history
+            result = await asyncio.create_subprocess_exec(
+                "powershell",
+                "-ExecutionPolicy", "Bypass",
+                "-Command",
+                f"openclaw sessions history --session {session_key} --limit {limit}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            
+            stdout, stderr = await asyncio.wait_for(
+                result.communicate(),
+                timeout=60
+            )
+            
+            if result.returncode != 0:
+                error_msg = stderr.decode() if stderr else f"Exit code: {result.returncode}"
+                logger.error(f"Command failed: {error_msg}")
+                return {"messages": [], "error": error_msg}
+            
+            # 解析输出
+            output = stdout.decode('utf-8', errors='ignore')
+            messages = parse_history_output(output, session_key)
+            
+            return {"messages": messages, "session_key": session_key}
+            
+        except asyncio.TimeoutError:
+            logger.error("Command timeout")
+            return {"messages": [], "error": "Command timeout"}
+        except Exception as e:
+            logger.error(f"Command error: {e}")
+            return {"messages": [], "error": str(e)}
     
     async def sessions_history(
         self,

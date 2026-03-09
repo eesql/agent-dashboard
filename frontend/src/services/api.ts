@@ -2,7 +2,7 @@
  * API 服务封装
  */
 import { request } from '@/utils/request';
-import type { Agent, Session, ToolCall, MetricsSummary, ListResponse } from '@/types';
+import type { Agent, Session, ToolCall, MetricsSummary, ListResponse, TrendDataPoint } from '@/types';
 
 // Agent API
 export const agentApi = {
@@ -58,5 +58,14 @@ export const metricsApi = {
   // 获取今日统计
   getToday: () => {
     return request.get<MetricsSummary>('/metrics/today');
+  },
+  
+  // 获取趋势数据
+  getTrend: (days: number = 7, agentId?: string) => {
+    const params: any = { days };
+    if (agentId) {
+      params.agent_id = agentId;
+    }
+    return request.get<TrendDataPoint[]>('/metrics/trend', { params });
   },
 };
