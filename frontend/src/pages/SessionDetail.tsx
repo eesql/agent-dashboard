@@ -15,9 +15,11 @@ import {
   Calendar,
   User,
   Cpu,
-  Code
+  Code,
+  RefreshCw
 } from 'lucide-react';
-import type { Session, ToolCall } from '@/types';
+import type { Session, ToolCall, Message } from '@/types';
+import { sessionApi, messageApi } from '@/services/api';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -26,8 +28,12 @@ export const SessionDetail: React.FC = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [messageOffset, setMessageOffset] = useState(0);
+  const MESSAGE_LIMIT = 50;
 
   useEffect(() => {
     if (!sessionId) return;
@@ -36,41 +42,16 @@ export const SessionDetail: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        // TODO: 调用 API 获取会话详情和消息历史
-        // const result = await sessionApi.get(sessionId);
-        // setSession(result);
+        // 获取会话详情
+        const sessionRes = await sessionApi.get(sessionId);
+        setSession(sessionRes.data);
         
-        // 模拟数据
-        setSession({
-          id: sessionId,
-          agent_id: 'agent-123',
-          label: 'Demo Session',
-          kind: 'subagent',
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-          last_activity: new Date().toISOString(),
-          message_count: 15,
-        });
+        // 获取工具调用
+        const toolCallsRes = await sessionApi.list({ limit: 20 });
+        setToolCalls(toolCallsRes.data.sessions || []);
         
-        setToolCalls([
-          {
-            id: 1,
-            session_id: sessionId,
-            tool_name: 'read',
-            tool_args: { path: './src/App.tsx' },
-            result_summary: 'Read 150 lines',
-            timestamp: new Date().toISOString(),
-            duration_ms: 45,
-          },
-          {
-            id: 2,
-            session_id: sessionId,
-            tool_name: 'exec',
-            tool_args: { command: 'npm install' },
-            result_summary: 'Installed packages',
-            timestamp: new Date(Date.now() - 300000).toISOString(),
-            duration_ms: 15230,
-          },
-        ]);
+        // 获取消息历史
+        await fetchMessages(0);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch session details');
       } finally {
@@ -80,6 +61,37 @@ export const SessionDetail: React.FC = () => {
 
     fetchSessionDetail();
   }, [sessionId]);
+
+  const fetchMessages = async (offset: number) => {
+    if (!sessionId) return;
+    
+    try {
+      const res = await messageApi.list(sessionId, { limit: MESSAGE_LIMIT, offset });
+      const data = res.data;
+      setMessages(prev => offset === 0 ? data.messages : [...prev, ...data.messages]);
+      setMessageOffset(offset + data.messages.length);
+    } catch (err: any) {
+      console.error('Failed to fetch messages:', err);
+    }
+  };
+
+  const handleSync = async () => {
+    if (!sessionId) return;
+    
+    setSyncing(true);
+    try {
+      await messageApi.sync(sessionId);
+      await fetchMessages(0);
+    } catch (err: any) {
+      console.error('Sync failed:', err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    fetchMessages(messageOffset);
+  };
 
   if (loading) {
     return (
@@ -114,23 +126,34 @@ export const SessionDetail: React.FC = () => {
   return (
     <div className="p-6 space-y-6">
       {/* 页面头部 */}
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={() => navigate('/sessions')}
-        >
-          <ArrowLeft size={16} />
-          返回
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">
-            会话详情
-          </h1>
-          <p className="text-sm text-text-secondary mt-1 font-mono">
-            {session.id}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => navigate('/sessions')}
+          >
+            <ArrowLeft size={16} />
+            返回
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary">
+              会话详情
+            </h1>
+            <p className="text-sm text-text-secondary mt-1 font-mono">
+              {session.id}
+            </p>
+          </div>
         </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleSync}
+          disabled={syncing}
+        >
+          <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+          {syncing ? '同步中...' : '同步消息'}
+        </Button>
       </div>
 
       {/* 会话信息 */}
@@ -204,14 +227,22 @@ export const SessionDetail: React.FC = () => {
       <ToolCallTimeline toolCalls={toolCalls} limit={10} />
 
       {/* 消息历史 */}
-      <Card>
-        <div className="flex items-center gap-2 mb-4">
+      <Card className="flex flex-col" style={{ height: '500px' }}>
+        <div className="flex items-center gap-2 mb-4 p-4 border-b border-border-default">
           <Code size={18} className="text-primary-500" />
           <h2 className="text-lg font-semibold text-text-primary">
             消息历史
           </h2>
+          <span className="text-sm text-text-muted ml-auto">
+            {messages.length} 条消息
+          </span>
         </div>
-        <MessageList sessionId={sessionId} />
+        <MessageList 
+          messages={messages}
+          loading={syncing}
+          onLoadMore={handleLoadMore}
+          hasMore={messageOffset < (session.message_count || 0)}
+        />
       </Card>
     </div>
   );

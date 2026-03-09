@@ -9,7 +9,7 @@ from app.api.websocket import notify_agent_status
 from app.config import settings
 from datetime import datetime
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger(__name__)
 

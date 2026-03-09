@@ -87,3 +87,18 @@ export interface ListResponse<T> {
   [key: string]: T[];
   total: number;
 }
+
+// Message 接口
+export interface Message {
+  id: number;
+  session_id: string;
+  role: string;
+  content: string | null;
+  tool_call_id: string | null;
+  tool_name: string | null;
+  tool_args: Record<string, any> | null;
+  tool_result: string | null;
+  is_tool_call: boolean;
+  is_tool_result: boolean;
+  timestamp: string;
+}

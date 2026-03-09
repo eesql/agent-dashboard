@@ -2,114 +2,100 @@
  * 消息列表组件（支持虚拟滚动）
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { useMessageStore } from '@/stores/messageStore';
 import { MessageBubble } from './MessageBubble';
-import { Button } from '@/components/ui/Button';
-import { Loader, RefreshCw } from 'lucide-react';
+import type { Message } from '@/types';
+import { format } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
 
 interface MessageListProps {
-  sessionId: string;
+  messages: Message[];
+  loading?: boolean;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ sessionId }) => {
-  const { messages, loading, error, total, hasMore, fetchMessages, syncMessages } = useMessageStore();
-  const [offset, setOffset] = useState(0);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const limit = 50;
+export const MessageList: React.FC<MessageListProps> = ({
+  messages,
+  loading = false,
+  onLoadMore,
+  hasMore = false,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(50);
 
+  // 初始加载显示最近 50 条
   useEffect(() => {
-    // 初始加载
-    fetchMessages(sessionId, { limit, offset: 0 });
-    setOffset(0);
-  }, [sessionId]);
-
-  // 滚动到底部
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    // 新消息到达时滚动到底部
-    if (messages.length > 0) {
-      setTimeout(scrollToBottom, 100);
-    }
+    setVisibleCount(50);
   }, [messages]);
 
-  // 加载更多
-  const loadMore = () => {
-    const newOffset = offset + limit;
-    setOffset(newOffset);
-    fetchMessages(sessionId, { limit, offset: newOffset });
-  };
+  // 滚动到底部时加载更多
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-  // 手动同步
-  const handleSync = async () => {
-    await syncMessages(sessionId);
-  };
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      
+      // 距离底部 200px 时加载更多
+      if (scrollHeight - scrollTop - clientHeight < 200 && hasMore && onLoadMore) {
+        onLoadMore();
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [hasMore, onLoadMore]);
+
+  // 只显示最近的 visibleCount 条消息
+  const visibleMessages = messages.slice(-visibleCount);
 
   if (loading && messages.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader className="animate-spin text-primary-500" size={32} />
+        <div className="text-center text-text-secondary">
+          <div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+          <p>加载消息中...</p>
+        </div>
       </div>
     );
   }
 
-  if (error && messages.length === 0) {
+  if (messages.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-error-500 mb-4">{error}</p>
-        <Button onClick={handleSync}>
-          <RefreshCw size={16} className="mr-2" />
-          重新同步
-        </Button>
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center text-text-muted">
+          <p>暂无消息</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* 同步按钮 */}
-      <div className="flex justify-end">
-        <Button variant="ghost" size="sm" onClick={handleSync}>
-          <RefreshCw size={14} className="mr-2" />
-          同步消息
-        </Button>
-      </div>
-
-      {/* 消息列表 */}
-      <div className="space-y-4 max-h-[600px] overflow-y-auto p-4 bg-bg-secondary rounded-lg">
-        {messages.length === 0 ? (
-          <div className="text-center py-12 text-text-muted">
-            <p>暂无消息</p>
-            <p className="text-sm mt-2">消息将从 OpenClaw session 文件同步</p>
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-y-auto space-y-3 p-4"
+      style={{ maxHeight: 'calc(100vh - 400px)' }}
+    >
+      {messages.length > visibleCount && (
+        <div className="text-center text-xs text-text-muted py-2">
+          还有 {messages.length - visibleCount} 条更早的消息，滚动加载更多
+        </div>
+      )}
+      
+      {visibleMessages.map((message) => (
+        <div key={message.id}>
+          <MessageBubble message={message} />
+          <div className="text-xs text-text-muted mt-1 ml-12">
+            {format(new Date(message.timestamp), 'HH:mm:ss', { locale: zhCN })}
           </div>
-        ) : (
-          <>
-            {/* 加载更多 */}
-            {hasMore && (
-              <div className="text-center">
-                <Button variant="ghost" size="sm" onClick={loadMore}>
-                  加载更多
-                </Button>
-              </div>
-            )}
+        </div>
+      ))}
 
-            {/* 消息 */}
-            {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))}
-
-            {/* 列表末尾标记 */}
-            <div ref={messagesEndRef} />
-          </>
-        )}
-      </div>
-
-      {/* 统计信息 */}
-      <div className="text-xs text-text-muted text-center">
-        共 {total} 条消息 {loading && '（加载中...）'}
-      </div>
+      {loading && (
+        <div className="text-center text-text-secondary py-4">
+          加载中...
+        </div>
+      )}
     </div>
   );
 };

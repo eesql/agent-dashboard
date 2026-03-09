@@ -2,7 +2,7 @@
  * API 服务封装
  */
 import { request } from '@/utils/request';
-import type { Agent, Session, ToolCall, MetricsSummary, ListResponse, TrendDataPoint } from '@/types';
+import type { Agent, Session, ToolCall, MetricsSummary, ListResponse, TrendDataPoint, Message } from '@/types';
 
 // Agent API
 export const agentApi = {
@@ -67,5 +67,23 @@ export const metricsApi = {
       params.agent_id = agentId;
     }
     return request.get<TrendDataPoint[]>('/metrics/trend', { params });
+  },
+};
+
+// Message API
+export const messageApi = {
+  // 获取消息列表
+  list: (sessionId: string, params?: { limit?: number; offset?: number }) => {
+    return request.get<{ messages: Message[]; total: number; has_more: boolean }>(
+      `/sessions/${sessionId}/messages`,
+      { params }
+    );
+  },
+  
+  // 同步消息
+  sync: (sessionId: string) => {
+    return request.post<{ status: string; count: number }>(
+      `/sessions/${sessionId}/messages/sync`
+    );
   },
 };
