@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -28,18 +29,18 @@ export default {
         error: { 500: '#EF4444', 600: '#DC2626' },
         info: { 500: '#3B82F6', 600: '#2563EB' },
         bg: {
-          primary: '#0F172A',
-          secondary: '#1E293B',
-          tertiary: '#334155',
+          primary: 'var(--bg-primary)',
+          secondary: 'var(--bg-secondary)',
+          tertiary: 'var(--bg-tertiary)',
         },
         text: {
-          primary: '#F1F5F9',
-          secondary: '#94A3B8',
-          muted: '#64748B',
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
         },
         border: {
-          default: '#334155',
-          light: '#475569',
+          default: 'var(--border-default)',
+          light: 'var(--border-light)',
         },
         status: {
           online: '#10B981',

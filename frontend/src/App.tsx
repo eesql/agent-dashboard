@@ -30,7 +30,7 @@ const App: React.FC = () => {
                   <NavLinks />
                   <ThemeToggle />
                   <a 
-                    href="/api/docs" 
+                    href="/docs" 
                     target="_blank"
                     className="text-sm text-text-secondary hover:text-primary-500 transition-colors"
                   >
