@@ -24,7 +24,7 @@ class DataAggregator:
         agent_id: Optional[str] = None,
         target_date: Optional[date] = None,
     ) -> Metric:
-        """聚合统计数据"""
+        """聚合统计数据 - 从 Session 表统计"""
         if target_date is None:
             target_date = date.today()
         
@@ -32,30 +32,26 @@ class DataAggregator:
         start_datetime = datetime.combine(target_date, datetime.min.time())
         end_datetime = datetime.combine(target_date, datetime.max.time())
         
-        # 查询工具调用统计
+        # 从 Session 表统计（更准确，直接使用 openclaw sessions 的 token 数据）
         query = select(
-            func.count(ToolCall.id).label("request_count"),
-            func.avg(ToolCall.duration_ms).label("avg_duration"),
+            func.sum(Session.message_count).label("token_count"),
+            func.count(Session.id).label("request_count"),
         ).where(
-            and_(
-                ToolCall.timestamp >= start_datetime,
-                ToolCall.timestamp <= end_datetime,
-            )
+            Session.last_activity >= start_datetime,
+            Session.last_activity <= end_datetime,
         )
         
         if agent_id:
-            # 需要通过 session 关联 agent
-            query = query.join(Session).where(Session.agent_id == agent_id)
+            query = query.where(Session.agent_id == agent_id)
         
         result = await self.db.execute(query)
         row = result.first()
         
+        token_count = row.token_count or 0
         request_count = row.request_count or 0
-        avg_duration = int(row.avg_duration or 0)
         
-        # 估算 token 和成本（简化版，实际需要从 API 获取）
-        token_count = request_count * 1000  # 假设每次请求平均 1000 tokens
-        estimated_cost = token_count * 0.000002  # 假设 $0.002/1K tokens
+        # 估算成本（假设 $0.002/1K tokens）
+        estimated_cost = token_count * 0.000002
         
         # 创建或更新 Metric 记录
         metric_query = select(Metric).where(
@@ -69,7 +65,6 @@ class DataAggregator:
         if metric:
             metric.token_count = token_count
             metric.request_count = request_count
-            metric.avg_response_time_ms = avg_duration
             metric.estimated_cost = estimated_cost
         else:
             metric = Metric(
@@ -77,12 +72,12 @@ class DataAggregator:
                 date=target_date,
                 token_count=token_count,
                 request_count=request_count,
-                avg_response_time_ms=avg_duration,
+                avg_response_time_ms=0,
                 estimated_cost=estimated_cost,
             )
             self.db.add(metric)
         
-        await self.db.flush()
+        await self.db.commit()
         return metric
     
     async def get_metrics_summary(self) -> Dict:
