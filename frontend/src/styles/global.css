@@ -79,19 +79,23 @@ body {
   }
   
   .badge-online {
-    @apply bg-success-500/10 text-success-500;
+    @apply text-success-500;
+    background-color: rgba(16, 185, 129, 0.1);
   }
   
   .badge-offline {
-    @apply bg-text-secondary/10 text-text-secondary;
+    @apply text-text-secondary;
+    background-color: rgba(148, 163, 184, 0.1);
   }
   
   .badge-busy {
-    @apply bg-warning-500/10 text-warning-500;
+    @apply text-warning-500;
+    background-color: rgba(245, 158, 11, 0.1);
   }
   
   .badge-error {
-    @apply bg-error-500/10 text-error-500;
+    @apply text-error-500;
+    background-color: rgba(239, 68, 68, 0.1);
   }
 }
 
