@@ -44,11 +44,11 @@ export const SessionDetail: React.FC = () => {
       try {
         // 获取会话详情
         const sessionRes = await sessionApi.get(sessionId);
-        setSession(sessionRes.data);
+        setSession(sessionRes);
         
         // 获取工具调用
         const toolCallsRes = await toolCallApi.list({ session_id: sessionId, limit: 20 });
-        setToolCalls(toolCallsRes.data.tool_calls || []);
+        setToolCalls(toolCallsRes.tool_calls || []);
         
         // 获取消息历史
         await fetchMessages(0);
@@ -67,9 +67,8 @@ export const SessionDetail: React.FC = () => {
     
     try {
       const res = await messageApi.list(sessionId, { limit: MESSAGE_LIMIT, offset });
-      const data = res.data;
-      setMessages(prev => offset === 0 ? data.messages : [...prev, ...data.messages]);
-      setMessageOffset(offset + data.messages.length);
+      setMessages(prev => offset === 0 ? res.messages : [...prev, ...res.messages]);
+      setMessageOffset(offset + res.messages.length);
     } catch (err: any) {
       console.error('Failed to fetch messages:', err);
     }
