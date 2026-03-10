@@ -31,7 +31,7 @@ export const Sessions: React.FC = () => {
     setError(null);
     try {
       const result = await sessionApi.list({ limit: 100 });
-      setSessions(result.data.sessions || []);
+      setSessions(result.sessions || []);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch sessions');
     } finally {
