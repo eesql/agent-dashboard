@@ -37,16 +37,36 @@ def parse_age_to_datetime(age_str: str) -> datetime:
 
 def parse_openclaw_sessions() -> List[Dict[str, Any]]:
     """解析 openclaw sessions 输出"""
+    import platform
+    
     try:
-        # 使用 PowerShell 调用 openclaw sessions
-        result = subprocess.run(
-            ["powershell", "-ExecutionPolicy", "Bypass", "-Command", "openclaw sessions"],
-            capture_output=True,
-            timeout=30,
-            cwd="C:\\nvm4w\\nodejs",
-            encoding='utf-8',
-            errors='ignore'
-        )
+        system = platform.system()
+        
+        if system == "Windows":
+            # Windows: 使用 PowerShell
+            result = subprocess.run(
+                ["powershell", "-ExecutionPolicy", "Bypass", "-Command", "openclaw sessions"],
+                capture_output=True,
+                timeout=30,
+                cwd="C:\\nvm4w\\nodejs",
+                encoding='utf-8',
+                errors='ignore'
+            )
+        else:
+            # Linux/macOS: 使用 bash，加载 nvm 环境
+            # 先尝试加载 nvm 并使用 node 22
+            cmd = """
+source ~/.nvm/nvm.sh 2>/dev/null || true
+nvm use 22 2>/dev/null || true
+openclaw sessions
+"""
+            result = subprocess.run(
+                ["bash", "-c", cmd],
+                capture_output=True,
+                timeout=30,
+                encoding='utf-8',
+                errors='ignore'
+            )
         
         if result.returncode != 0:
             logger.error(f"openclaw sessions failed: {result.stderr}")
