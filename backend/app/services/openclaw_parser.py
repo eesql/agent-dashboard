@@ -78,7 +78,9 @@ def parse_openclaw_sessions() -> List[Dict[str, Any]]:
                     age = f"{int(age_seconds / 86400)}d"
                 
                 # 获取 token 数
-                total_tokens = session_info.get('totalTokens', 0) or session_info.get('inputTokens', 0) + session_info.get('outputTokens', 0)
+                input_tokens = session_info.get('inputTokens', 0) or 0
+                output_tokens = session_info.get('outputTokens', 0) or 0
+                total_tokens = session_info.get('totalTokens', 0) or (input_tokens + output_tokens)
                 
                 # 判断状态
                 if age_seconds < 300:  # 5 分钟内
@@ -95,6 +97,10 @@ def parse_openclaw_sessions() -> List[Dict[str, Any]]:
                     "age": f"{age} ago",
                     "model": session_info.get('model', 'unknown'),
                     "tokens": total_tokens,
+                    "inputTokens": input_tokens,
+                    "outputTokens": output_tokens,
+                    "totalTokens": total_tokens,
+                    "thinkingLevel": session_info.get('thinkingLevel', 'off'),
                     "last_seen": last_seen.isoformat(),
                     "status": status,
                     "sessionFile": session_info.get('sessionFile'),

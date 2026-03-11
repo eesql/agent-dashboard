@@ -3,7 +3,7 @@
  */
 import { create } from 'zustand';
 import type { SessionInfo } from '@/types';
-import { api } from '@/lib/api';
+import { request } from '@/utils/request';
 
 interface SessionInfoState {
   sessions: SessionInfo[];
@@ -37,8 +37,8 @@ export const useSessionInfoStore = create<SessionInfoState>((set) => ({
       if (filters.agent_id) params.append('agent_id', filters.agent_id);
       if (filters.status) params.append('status', filters.status);
       
-      const data = await api.get<SessionInfo[]>(`/api/session-info?${params.toString()}`);
-      set({ sessions: data, loading: false });
+      const data = await request.get<SessionInfo[]>(`/session-info?${params.toString()}`);
+      set({ sessions: data as unknown as SessionInfo[], loading: false });
     } catch (error: any) {
       set({ error: error.message || 'Failed to fetch sessions', loading: false });
     }
@@ -46,8 +46,8 @@ export const useSessionInfoStore = create<SessionInfoState>((set) => ({
   
   fetchSummary: async () => {
     try {
-      const data = await api.get<any>('/api/session-info/summary');
-      set({ summary: data });
+      const data = await request.get<any>('/session-info/summary');
+      set({ summary: data as any });
     } catch (error: any) {
       console.error('Failed to fetch session summary:', error);
     }
