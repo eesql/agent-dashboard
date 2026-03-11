@@ -232,10 +232,24 @@ class AgentMonitor:
         else:
             last_activity = datetime.now()
         
+        # 尝试从 session 文件获取实际统计数据
+        request_count = 0
+        token_count = data.get("tokens", 0)
+        
+        from app.services.openclaw_parser import parse_session_stats, find_session_file
+        session_file = find_session_file(session_id)
+        if session_file:
+            stats = parse_session_stats(session_file)
+            request_count = stats.get('request_count', 0)
+            if stats.get('token_count', 0) > 0:
+                token_count = stats.get('token_count', 0)
+            logger.debug(f"Session {session_id} stats: requests={request_count}, tokens={token_count}")
+        
         if session:
             # 更新现有记录
             session.last_activity = last_activity
-            session.message_count = data.get("tokens", 0)  # 暂时用 tokens 作为 message_count 的代理
+            session.message_count = token_count
+            session.request_count = request_count
         else:
             # 创建新记录
             session = Session(
@@ -245,7 +259,8 @@ class AgentMonitor:
                 kind=data.get("kind", "direct"),
                 created_at=last_activity,
                 last_activity=last_activity,
-                message_count=data.get("tokens", 0),
+                message_count=token_count,
+                request_count=request_count,
             )
             self.db.add(session)
         

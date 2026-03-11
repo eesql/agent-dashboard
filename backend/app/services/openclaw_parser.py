@@ -211,3 +211,92 @@ def parse_session_jsonl(session_file: str, session_key: str) -> List[Dict[str, A
     except Exception as e:
         logger.error(f"Failed to parse session jsonl: {e}")
         return []
+
+
+def parse_session_stats(session_file: str) -> Dict[str, int]:
+    """解析 session 的 jsonl 文件，统计API请求数和token数
+    
+    Returns:
+        Dict with keys: request_count (API请求数), token_count (总token数)
+    """
+    import os
+    
+    result = {
+        "request_count": 0,
+        "token_count": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+    }
+    
+    try:
+        if not os.path.exists(session_file):
+            logger.debug(f"Session file not found: {session_file}")
+            return result
+        
+        with open(session_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                try:
+                    entry = json.loads(line)
+                    
+                    # 统计 assistant 消息（每次 assistant 响应代表一次 API 请求）
+                    if entry.get('type') == 'message':
+                        msg = entry.get('message', {})
+                        role = msg.get('role', '')
+                        
+                        if role == 'assistant':
+                            result['request_count'] += 1
+                            
+                            # 提取 token 使用量
+                            usage = msg.get('usage', {})
+                            if usage:
+                                result['input_tokens'] += usage.get('input', 0)
+                                result['output_tokens'] += usage.get('output', 0)
+                                result['token_count'] += usage.get('totalTokens', 0)
+                    
+                except json.JSONDecodeError:
+                    continue
+        
+        logger.debug(f"Parsed session stats: {result}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to parse session stats: {e}")
+        return result
+
+
+def find_session_file(session_key: str) -> Optional[str]:
+    """根据 session key 查找对应的 jsonl 文件路径
+    
+    Args:
+        session_key: 会话标识，格式如 "agent:main:feishu...xxx" 或 "direct:xxx"
+    
+    Returns:
+        session jsonl 文件的完整路径，找不到返回 None
+    """
+    import os
+    import glob
+    
+    # 从 session key 提取可能的 session id
+    # 格式可能是 "agent:main:feishu...xxx" 或 "direct:xxx"
+    parts = session_key.split(':')
+    session_id = parts[-1] if len(parts) > 1 else session_key
+    
+    # 可能的 session 目录位置
+    session_dirs = [
+        os.path.expanduser('~/.openclaw/agents/main/sessions'),
+        os.path.expanduser('~/.openclaw/agents/agent-feishu-pd/sessions'),
+        os.path.expanduser('~/.openclaw/agents/*/sessions'),
+    ]
+    
+    for pattern in session_dirs:
+        # 使用 glob 处理通配符
+        for session_dir in glob.glob(pattern):
+            session_file = os.path.join(session_dir, f'{session_id}.jsonl')
+            if os.path.exists(session_file):
+                return session_file
+    
+    return None

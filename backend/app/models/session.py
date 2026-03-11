@@ -15,7 +15,8 @@ class Session(Base):
     kind: Mapped[str] = mapped_column(String, nullable=True)  # subagent, acp, etc.
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     last_activity: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
-    message_count: Mapped[int] = mapped_column(Integer, default=0)
+    message_count: Mapped[int] = mapped_column(Integer, default=0)  # token count (kept for compatibility)
+    request_count: Mapped[int] = mapped_column(Integer, default=0)  # actual API request count
     
     # 关系
     agent = relationship("Agent", backref="sessions")

@@ -24,7 +24,11 @@ class DataAggregator:
         agent_id: Optional[str] = None,
         target_date: Optional[date] = None,
     ) -> Metric:
-        """聚合统计数据 - 从 Session 表统计"""
+        """聚合统计数据 - 从 Session 表统计
+        
+        request_count: 统计实际的 API 请求数（每次 assistant 响应算一次请求）
+        token_count: 统计总 token 使用量
+        """
         if target_date is None:
             target_date = date.today()
         
@@ -32,10 +36,13 @@ class DataAggregator:
         start_datetime = datetime.combine(target_date, datetime.min.time())
         end_datetime = datetime.combine(target_date, datetime.max.time())
         
-        # 从 Session 表统计（更准确，直接使用 openclaw sessions 的 token 数据）
+        # 从 Session 表统计
+        # - token_count: SUM(Session.message_count) 
+        # - request_count: SUM(Session.request_count) 实际 API 请求数
         query = select(
             func.sum(Session.message_count).label("token_count"),
-            func.count(Session.id).label("request_count"),
+            func.sum(Session.request_count).label("request_count"),  # 实际请求数
+            func.count(Session.id).label("session_count"),  # 会话数（保留用于调试）
         ).where(
             Session.last_activity >= start_datetime,
             Session.last_activity <= end_datetime,
@@ -48,7 +55,7 @@ class DataAggregator:
         row = result.first()
         
         token_count = row.token_count or 0
-        request_count = row.request_count or 0
+        request_count = row.request_count or 0  # 使用实际的 API 请求数
         
         # 估算成本（假设 $0.002/1K tokens）
         estimated_cost = token_count * 0.000002
@@ -78,6 +85,7 @@ class DataAggregator:
             self.db.add(metric)
         
         await self.db.commit()
+        logger.info(f"Aggregated metrics for {target_date}: tokens={token_count}, requests={request_count}")
         return metric
     
     async def get_metrics_summary(self) -> Dict:
