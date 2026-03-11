@@ -4,6 +4,7 @@ from app.api.sessions import router as sessions_router
 from app.api.tool_calls import router as tool_calls_router
 from app.api.metrics import router as metrics_router
 from app.api.messages import router as messages_router
+from app.api.session_info import router as session_info_router
 
 __all__ = [
     "agents_router",
@@ -11,4 +12,5 @@ __all__ = [
     "tool_calls_router",
     "metrics_router",
     "messages_router",
+    "session_info_router",
 ]

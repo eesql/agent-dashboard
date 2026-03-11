@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
 from app.db.database import init_db, close_db
-from app.api import agents_router, sessions_router, tool_calls_router, metrics_router, messages_router
+from app.api import agents_router, sessions_router, tool_calls_router, metrics_router, messages_router, session_info_router
 from app.api.websocket import router as websocket_router
 import logging
 
@@ -69,6 +69,7 @@ app.include_router(sessions_router)
 app.include_router(tool_calls_router)
 app.include_router(metrics_router)
 app.include_router(messages_router)
+app.include_router(session_info_router)
 app.include_router(websocket_router)
 
 

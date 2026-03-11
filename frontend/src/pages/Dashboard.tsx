@@ -5,14 +5,16 @@ import React, { useEffect } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { useMetricsStore } from '@/stores/metricsStore';
 import { useToolCallStore } from '@/stores/toolCallStore';
+import { useSessionInfoStore } from '@/stores/sessionInfoStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { AgentCard } from '@/components/dashboard/AgentCard';
+import { SessionCard } from '@/components/dashboard/SessionCard';
 import { MetricsCard } from '@/components/dashboard/MetricsCard';
 import { ToolCallTimeline } from '@/components/dashboard/ToolCallTimeline';
 import { StatsChart } from '@/components/dashboard/StatsChart';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { RefreshCw, Box, Wifi, WifiOff, MessageSquare } from 'lucide-react';
+import { RefreshCw, Box, Wifi, WifiOff, MessageSquare, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
@@ -40,6 +42,13 @@ export const Dashboard: React.FC = () => {
     toolCalls, 
     fetchToolCalls,
   } = useToolCallStore();
+  
+  const {
+    sessions,
+    summary: sessionSummary,
+    fetchSessions,
+    fetchSummary: fetchSessionSummary,
+  } = useSessionInfoStore();
 
   // WebSocket 连接
   const { isConnected } = useWebSocket({
@@ -58,6 +67,8 @@ export const Dashboard: React.FC = () => {
     fetchSummary();
     fetchTrendData(7); // 获取过去 7 天的趋势数据
     fetchToolCalls({ limit: 20, hours: 24 }); // 获取最近 20 条工具调用记录
+    fetchSessions(); // 获取会话信息
+    fetchSessionSummary(); // 获取会话摘要
     
     // 定时刷新（每 30 秒）
     const interval = setInterval(() => {
@@ -65,6 +76,8 @@ export const Dashboard: React.FC = () => {
       fetchSummary();
       fetchTrendData(7);
       fetchToolCalls({ limit: 20, hours: 24 });
+      fetchSessions();
+      fetchSessionSummary();
     }, 30000);
     
     return () => clearInterval(interval);
@@ -72,9 +85,11 @@ export const Dashboard: React.FC = () => {
 
   const handleSync = async () => {
     await syncAgents();
+    await fetchSessions();
   };
 
   const onlineAgents = getOnlineAgents();
+  const onlineSessions = sessions.filter(s => s.status === 'online').length;
 
   return (
     <div className="p-6 space-y-6">
@@ -137,10 +152,10 @@ export const Dashboard: React.FC = () => {
           icon="agents"
         />
         <MetricsCard
-          title="Active Agents"
-          value={onlineAgents.length}
-          icon="agents"
-          subtitle={`${summary?.active_agents || 0} online`}
+          title="Active Sessions"
+          value={sessionSummary?.total || sessions.length || 0}
+          icon="sessions"
+          subtitle={`${onlineSessions} online`}
         />
         <MetricsCard
           title="Requests Today"
@@ -158,7 +173,8 @@ export const Dashboard: React.FC = () => {
       {/* Agent 列表 */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">
+          <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+            <Users size={20} />
             Agents ({agents.length})
           </h2>
           <span className="text-sm text-text-secondary">
@@ -178,6 +194,38 @@ export const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {agents.map((agent) => (
               <AgentCard key={agent.id} agent={agent} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sessions 列表 */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+            <MessageSquare size={20} />
+            会话 ({sessions.length})
+          </h2>
+          <div className="flex items-center gap-4 text-sm text-text-secondary">
+            {sessionSummary && (
+              <>
+                <span className="text-success-500">在线: {sessionSummary.online}</span>
+                <span className="text-warning-500">忙碌: {sessionSummary.busy}</span>
+                <span className="text-text-muted">离线: {sessionSummary.offline}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {sessions.length === 0 ? (
+          <div className="text-center py-12">
+            <MessageSquare size={48} className="mx-auto text-text-muted mb-4" />
+            <p className="text-text-secondary">No active sessions</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sessions.map((session) => (
+              <SessionCard key={session.id} session={session} />
             ))}
           </div>
         )}

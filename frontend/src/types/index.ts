@@ -16,7 +16,13 @@ export interface Agent {
   updated_at: string;
 }
 
-// Session 接口
+// Session 状态枚举
+export type SessionStatus = 'online' | 'offline' | 'busy';
+
+// Thinking level 类型
+export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+
+// Session 接口（扩展）
 export interface Session {
   id: string;
   agent_id: string | null;
@@ -25,6 +31,25 @@ export interface Session {
   created_at: string;
   last_activity: string;
   message_count: number;
+  request_count: number;
+}
+
+// Session 详情接口（用于卡片展示）
+export interface SessionInfo {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  channel: string;
+  status: SessionStatus;
+  model: string;
+  thinking_level: ThinkingLevel;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  context_limit: number;
+  context_usage_percent: number;
+  last_activity: string;
+  created_at: string;
 }
 
 // Tool Call 接口
