@@ -183,10 +183,15 @@ class AgentMonitor:
         
         if not existing:
             # 创建新记录
+            import json
+            tool_args = tool_call_data.get("tool_args")
+            if isinstance(tool_args, dict):
+                tool_args = json.dumps(tool_args)
+            
             tool_call = ToolCall(
                 session_id=session_id,
                 tool_name=tool_name,
-                tool_args=tool_call_data.get("tool_args"),
+                tool_args=tool_args,
                 result_summary=tool_call_data.get("result_summary"),
                 timestamp=timestamp,
                 duration_ms=tool_call_data.get("duration_ms"),

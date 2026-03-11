@@ -1,6 +1,6 @@
 """定时同步服务"""
 import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.services.agent_monitor import AgentMonitor
 from app.services.data_aggregator import DataAggregator
 from app.config import settings
@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 class SyncService:
     """数据同步服务"""
     
-    def __init__(self, db_session: AsyncSession):
-        self.db = db_session
+    def __init__(self, session_factory: async_sessionmaker):
+        self.session_factory = session_factory
         self._running = False
         self._task = None
     
@@ -53,34 +53,36 @@ class SyncService:
         """执行一次同步"""
         logger.debug("Starting sync...")
         
-        # 同步 Agent 状态
-        monitor = AgentMonitor(self.db)
-        agents = await monitor.sync_agents()
-        logger.info(f"Synced {len(agents)} agents")
-        
-        # 聚合统计数据
-        aggregator = DataAggregator(self.db)
-        await aggregator.aggregate_metrics()
-        logger.debug("Metrics aggregated")
+        async with self.session_factory() as db:
+            # 同步 Agent 状态
+            monitor = AgentMonitor(db)
+            agents = await monitor.sync_agents()
+            logger.info(f"Synced {len(agents)} agents")
+            
+            # 聚合统计数据
+            aggregator = DataAggregator(db)
+            await aggregator.aggregate_metrics()
+            logger.debug("Metrics aggregated")
     
     async def sync_now(self) -> dict:
         """立即执行同步"""
         logger.info("Manual sync triggered")
         
         try:
-            # 同步 Agent 状态
-            monitor = AgentMonitor(self.db)
-            agents = await monitor.sync_agents()
-            
-            # 聚合统计数据
-            aggregator = DataAggregator(self.db)
-            await aggregator.aggregate_metrics()
-            
-            return {
-                "success": True,
-                "synced_agents": len(agents),
-                "timestamp": datetime.now().isoformat(),
-            }
+            async with self.session_factory() as db:
+                # 同步 Agent 状态
+                monitor = AgentMonitor(db)
+                agents = await monitor.sync_agents()
+                
+                # 聚合统计数据
+                aggregator = DataAggregator(db)
+                await aggregator.aggregate_metrics()
+                
+                return {
+                    "success": True,
+                    "synced_agents": len(agents),
+                    "timestamp": datetime.now().isoformat(),
+                }
         except Exception as e:
             logger.error(f"Manual sync failed: {e}")
             return {
@@ -94,9 +96,9 @@ class SyncService:
 sync_service: SyncService = None
 
 
-def get_sync_service(db: AsyncSession) -> SyncService:
+def get_sync_service(session_factory: async_sessionmaker) -> SyncService:
     """获取同步服务实例"""
     global sync_service
     if sync_service is None:
-        sync_service = SyncService(db)
+        sync_service = SyncService(session_factory)
     return sync_service
