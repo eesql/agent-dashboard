@@ -45,6 +45,9 @@ class AgentMonitor:
                 # 同步保存 Session 记录
                 await self._upsert_session(agent_id, session_data)
             
+            # 清理无效的截断 key 记录（包含 '...' 的）
+            await self._cleanup_truncated_keys()
+            
             # 提交事务（先提交 agent 更新，避免长时间持有锁）
             await self.db.commit()
             
@@ -100,6 +103,29 @@ class AgentMonitor:
             self.db.add(metric)
         
         await self.db.commit()
+    
+    async def _cleanup_truncated_keys(self):
+        """清理截断的旧数据（包含 '...' 的 key）"""
+        from sqlalchemy import delete
+        
+        try:
+            # 删除截断的 agent 记录
+            result = await self.db.execute(
+                delete(Agent).where(Agent.id.like('%...%'))
+            )
+            deleted_agents = result.rowcount
+            
+            # 删除截断的 session 记录
+            result = await self.db.execute(
+                delete(Session).where(Session.id.like('%...%'))
+            )
+            deleted_sessions = result.rowcount
+            
+            if deleted_agents > 0 or deleted_sessions > 0:
+                logger.info(f"Cleaned up {deleted_agents} truncated agents, {deleted_sessions} truncated sessions")
+                await self.db.flush()
+        except Exception as e:
+            logger.debug(f"Cleanup failed (may be no truncated keys): {e}")
     
     async def _sync_tool_calls(self, sessions_data: List[Dict[str, Any]]):
         """同步工具调用记录"""
