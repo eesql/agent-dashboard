@@ -36,7 +36,79 @@ def parse_age_to_datetime(age_str: str) -> datetime:
 
 
 def parse_openclaw_sessions() -> List[Dict[str, Any]]:
-    """解析 openclaw sessions 输出"""
+    """解析 openclaw sessions 输出
+    
+    优先从 sessions.json 读取完整数据，回退到命令行解析
+    """
+    import os
+    import glob
+    
+    sessions = []
+    seen_keys = set()
+    
+    # 方法1: 直接从 sessions.json 读取（更准确）
+    sessions_json_paths = glob.glob(os.path.expanduser('~/.openclaw/agents/*/sessions/sessions.json'))
+    
+    for sessions_json_path in sessions_json_paths:
+        try:
+            with open(sessions_json_path, 'r', encoding='utf-8') as f:
+                sessions_map = json.load(f)
+            
+            for session_key, session_info in sessions_map.items():
+                if session_key in seen_keys:
+                    continue
+                seen_keys.add(session_key)
+                
+                # 解析时间
+                updated_at = session_info.get('updatedAt')
+                if updated_at:
+                    last_seen = datetime.fromtimestamp(updated_at / 1000)
+                else:
+                    last_seen = datetime.now()
+                
+                # 计算 age
+                age_seconds = (datetime.now() - last_seen).total_seconds()
+                if age_seconds < 60:
+                    age = f"{int(age_seconds)}s"
+                elif age_seconds < 3600:
+                    age = f"{int(age_seconds / 60)}m"
+                elif age_seconds < 86400:
+                    age = f"{int(age_seconds / 3600)}h"
+                else:
+                    age = f"{int(age_seconds / 86400)}d"
+                
+                # 获取 token 数
+                total_tokens = session_info.get('totalTokens', 0) or session_info.get('inputTokens', 0) + session_info.get('outputTokens', 0)
+                
+                # 判断状态
+                if age_seconds < 300:  # 5 分钟内
+                    status = "online"
+                elif age_seconds < 3600:  # 1 小时内
+                    status = "busy"
+                else:
+                    status = "offline"
+                
+                sessions.append({
+                    "id": session_key,
+                    "key": session_key,
+                    "kind": session_info.get('chatType', 'direct'),
+                    "age": f"{age} ago",
+                    "model": session_info.get('model', 'unknown'),
+                    "tokens": total_tokens,
+                    "last_seen": last_seen.isoformat(),
+                    "status": status,
+                    "sessionFile": session_info.get('sessionFile'),
+                })
+                
+        except Exception as e:
+            logger.debug(f"Failed to read {sessions_json_path}: {e}")
+            continue
+    
+    if sessions:
+        logger.info(f"Loaded {len(sessions)} sessions from sessions.json")
+        return sessions
+    
+    # 方法2: 回退到命令行解析
     import platform
     
     try:
@@ -272,7 +344,7 @@ def find_session_file(session_key: str) -> Optional[str]:
     """根据 session key 查找对应的 jsonl 文件路径
     
     Args:
-        session_key: 会话标识，格式如 "agent:main:feishu...xxx" 或 "direct:xxx"
+        session_key: 会话标识，格式如 "agent:main:feishu:direct:ou_xxx" 或 "direct:xxx"
     
     Returns:
         session jsonl 文件的完整路径，找不到返回 None
@@ -280,23 +352,43 @@ def find_session_file(session_key: str) -> Optional[str]:
     import os
     import glob
     
-    # 从 session key 提取可能的 session id
-    # 格式可能是 "agent:main:feishu...xxx" 或 "direct:xxx"
+    # 从 session key 提取 agent 名称（如果存在）
+    # 格式: "agent:main:feishu:direct:ou_xxx" 或 "agent:agent-feishu-pd:..."
     parts = session_key.split(':')
-    session_id = parts[-1] if len(parts) > 1 else session_key
+    agent_name = None
+    if len(parts) >= 2 and parts[0] == 'agent':
+        agent_name = parts[1]
     
-    # 可能的 session 目录位置
-    session_dirs = [
-        os.path.expanduser('~/.openclaw/agents/main/sessions'),
-        os.path.expanduser('~/.openclaw/agents/agent-feishu-pd/sessions'),
-        os.path.expanduser('~/.openclaw/agents/*/sessions'),
-    ]
+    # 可能的 sessions.json 位置
+    sessions_json_paths = []
+    if agent_name:
+        sessions_json_paths.append(os.path.expanduser(f'~/.openclaw/agents/{agent_name}/sessions/sessions.json'))
     
-    for pattern in session_dirs:
-        # 使用 glob 处理通配符
-        for session_dir in glob.glob(pattern):
-            session_file = os.path.join(session_dir, f'{session_id}.jsonl')
-            if os.path.exists(session_file):
-                return session_file
+    # 如果没找到，搜索所有 agent 目录
+    if not sessions_json_paths or not os.path.exists(sessions_json_paths[0]):
+        sessions_json_paths = glob.glob(os.path.expanduser('~/.openclaw/agents/*/sessions/sessions.json'))
+    
+    for sessions_json_path in sessions_json_paths:
+        try:
+            with open(sessions_json_path, 'r', encoding='utf-8') as f:
+                sessions_map = json.load(f)
+            
+            # 查找匹配的 session key
+            if session_key in sessions_map:
+                session_info = sessions_map[session_key]
+                session_file = session_info.get('sessionFile')
+                if session_file and os.path.exists(session_file):
+                    return session_file
+            
+            # 尝试模糊匹配（session key 可能被截断）
+            for key, info in sessions_map.items():
+                if session_key in key or key in session_key:
+                    session_file = info.get('sessionFile')
+                    if session_file and os.path.exists(session_file):
+                        return session_file
+                    
+        except Exception as e:
+            logger.debug(f"Failed to read sessions.json: {e}")
+            continue
     
     return None
