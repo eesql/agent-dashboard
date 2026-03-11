@@ -3,7 +3,7 @@ import subprocess
 import re
 import json
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import logging
 
 logger = logging.getLogger(__name__)
@@ -343,6 +343,94 @@ def parse_session_stats(session_file: str) -> Dict[str, int]:
         
     except Exception as e:
         logger.error(f"Failed to parse session stats: {e}")
+        return result
+
+
+def parse_session_daily_stats(session_file: str, target_date: date) -> Dict[str, int]:
+    """解析 session 的 jsonl 文件，统计指定日期的增量数据
+    
+    Args:
+        session_file: session jsonl 文件路径
+        target_date: 目标日期
+    
+    Returns:
+        Dict with keys: request_count, token_count, input_tokens, output_tokens
+    """
+    import os
+    from datetime import date as date_type
+    
+    result = {
+        "request_count": 0,
+        "token_count": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+    }
+    
+    try:
+        if not os.path.exists(session_file):
+            logger.debug(f"Session file not found: {session_file}")
+            return result
+        
+        # 计算目标日期的时间范围
+        start_ts = datetime.combine(target_date, datetime.min.time())
+        end_ts = datetime.combine(target_date, datetime.max.time())
+        
+        with open(session_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                try:
+                    entry = json.loads(line)
+                    
+                    # 解析时间戳
+                    timestamp_str = entry.get('timestamp', '')
+                    if not timestamp_str:
+                        continue
+                    
+                    # 解析 ISO 格式时间戳
+                    try:
+                        # 处理带 Z 的时间戳
+                        if timestamp_str.endswith('Z'):
+                            entry_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        else:
+                            entry_time = datetime.fromisoformat(timestamp_str)
+                        
+                        # 去掉时区信息进行比较
+                        if entry_time.tzinfo:
+                            entry_time = entry_time.replace(tzinfo=None)
+                        
+                        # 检查是否在目标日期范围内
+                        if not (start_ts <= entry_time <= end_ts):
+                            continue
+                            
+                    except ValueError:
+                        continue
+                    
+                    # 统计 assistant 消息
+                    if entry.get('type') == 'message':
+                        msg = entry.get('message', {})
+                        role = msg.get('role', '')
+                        
+                        if role == 'assistant':
+                            result['request_count'] += 1
+                            
+                            # 提取 token 使用量
+                            usage = msg.get('usage', {})
+                            if usage:
+                                result['input_tokens'] += usage.get('input', 0)
+                                result['output_tokens'] += usage.get('output', 0)
+                                result['token_count'] += usage.get('totalTokens', 0)
+                    
+                except json.JSONDecodeError:
+                    continue
+        
+        logger.debug(f"Parsed daily stats for {target_date}: {result}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to parse session daily stats: {e}")
         return result
 
 
