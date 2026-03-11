@@ -4,7 +4,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Activity, Clock, Cpu } from 'lucide-react';
+import { Activity, Clock, Cpu, Bot } from 'lucide-react';
 import type { Agent } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -13,6 +13,37 @@ interface AgentCardProps {
   agent: Agent;
   onClick?: () => void;
 }
+
+/**
+ * 从 session key 提取 agent 名称
+ * agent:main:qqbot:direct:xxx → "main / QQ Bot"
+ * agent:agent-feishu-pd:feishu:direct:xxx → "agent-feishu-pd / 飞书"
+ */
+const extractAgentName = (id: string): string => {
+  const parts = id.split(':');
+  if (parts.length < 3) return id;
+  
+  const agentName = parts[1] || 'unknown';
+  const channel = parts[2] || '';
+  
+  // 渠道名称映射
+  const channelNames: Record<string, string> = {
+    'qqbot': 'QQ Bot',
+    'feishu': '飞书',
+    'telegram': 'Telegram',
+    'discord': 'Discord',
+    'wecom': '企业微信',
+    'slack': 'Slack',
+    'direct': '',
+  };
+  
+  const channelName = channelNames[channel] || channel;
+  
+  if (channelName) {
+    return `${agentName} / ${channelName}`;
+  }
+  return agentName;
+};
 
 export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick }) => {
   const formatLastSeen = (dateString: string) => {
@@ -36,6 +67,9 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick }) => {
     }
   };
 
+  const agentName = extractAgentName(agent.id);
+  const modelName = agent.name || 'Unknown';
+
   return (
     <Card 
       hover={!!onClick}
@@ -43,13 +77,14 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick }) => {
       className={`border-l-4 ${getStatusBorder(agent.status)}`}
     >
       <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-text-primary mb-1">
-            {agent.name || agent.id}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold text-text-primary mb-1 truncate" title={agentName}>
+            {agentName}
           </h3>
-          <p className="text-xs text-text-muted font-mono">
-            {agent.id.slice(0, 20)}...
-          </p>
+          <div className="flex items-center gap-2">
+            <Cpu size={12} className="text-text-muted" />
+            <span className="text-sm text-text-secondary">{modelName}</span>
+          </div>
         </div>
         <Badge status={agent.status} />
       </div>
@@ -57,8 +92,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick }) => {
       {agent.current_task && (
         <div className="mb-4 p-3 bg-bg-tertiary rounded-md">
           <div className="flex items-center gap-2 mb-1">
-            <Cpu size={14} className="text-text-secondary" />
-            <span className="text-xs text-text-secondary font-medium">Current Task</span>
+            <Bot size={14} className="text-text-secondary" />
+            <span className="text-xs text-text-secondary font-medium">当前任务</span>
           </div>
           <p className="text-sm text-text-primary font-mono truncate">
             {agent.current_task}
