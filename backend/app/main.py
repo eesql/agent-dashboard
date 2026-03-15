@@ -6,12 +6,16 @@ from app.config import settings
 from app.db.database import init_db, close_db
 from app.api import agents_router, sessions_router, tool_calls_router, metrics_router, messages_router, session_info_router
 from app.api.websocket import router as websocket_router
+from app.logging_config import setup_logging
 import logging
 
-# 配置日志
-logging.basicConfig(
-    level=logging.DEBUG if settings.debug else logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+# 配置日志（支持轮转，防止磁盘空间被占满）
+setup_logging(
+    log_level=settings.log_level,
+    log_dir=settings.log_dir,
+    log_max_bytes=settings.log_max_bytes,
+    log_backup_count=settings.log_backup_count,
+    debug=settings.debug,
 )
 logger = logging.getLogger(__name__)
 
