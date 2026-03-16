@@ -93,51 +93,56 @@ export const Dashboard: React.FC = () => {
   const onlineSessions = sessions.filter(s => s.status === 'online').length;
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* 极光背景 */}
-      <Aurora 
-        colorStops={['#a855f7', '#7c3aed', '#6366f1']}
-        amplitude={1.5}
-        blend={0.8}
-        speed={1.0}
-      />
+    <div className="min-h-screen">
+      {/* 页面头部 - 带极光背景 */}
+      <header className="relative h-20 overflow-hidden">
+        {/* 极光背景 */}
+        <Aurora 
+          colorStops={['#a855f7', '#7c3aed', '#6366f1']}
+          amplitude={1.5}
+          blend={0.8}
+          speed={1.0}
+        />
+        
+        {/* 头部内容 */}
+        <div className="relative z-10 h-full px-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white drop-shadow-lg">Dashboard</h1>
+            <p className="text-sm text-white/80 mt-1 drop-shadow">
+              OpenClaw Agent 状态监控
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* WebSocket 状态指示器 */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md">
+              {isConnected ? (
+                <>
+                  <Wifi size={16} className="text-green-300" />
+                  <span className="text-xs text-white/90">Live</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff size={16} className="text-white/60" />
+                  <span className="text-xs text-white/60">Offline</span>
+                </>
+              )}
+            </div>
+            
+            <Button 
+              onClick={handleSync} 
+              loading={agentsLoading}
+              variant="secondary"
+              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+            >
+              <RefreshCw size={16} />
+              同步状态
+            </Button>
+          </div>
+        </div>
+      </header>
       
       {/* 内容区域 */}
-      <div className="relative z-10 p-6 space-y-6">
-      {/* 页面头部 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            OpenClaw Agent 状态监控
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* WebSocket 状态指示器 */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-secondary border border-border-default rounded-md">
-            {isConnected ? (
-              <>
-                <Wifi size={16} className="text-success-500" />
-                <span className="text-xs text-text-secondary">Live</span>
-              </>
-            ) : (
-              <>
-                <WifiOff size={16} className="text-text-muted" />
-                <span className="text-xs text-text-muted">Offline</span>
-              </>
-            )}
-          </div>
-          
-          <Button 
-            onClick={handleSync} 
-            loading={agentsLoading}
-            variant="secondary"
-          >
-            <RefreshCw size={16} />
-            同步状态
-          </Button>
-        </div>
-      </div>
+      <div className="p-6 space-y-6">
 
       {/* 错误提示 */}
       {agentsError && (
