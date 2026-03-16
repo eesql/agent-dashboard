@@ -1,16 +1,14 @@
 #!/bin/bash
 # Agent Dashboard 日志清理脚本
-# 用于清理过期的日志文件，防止磁盘空间被占满
+# 只清理 agent-dashboard 项目下的日志文件
 
 set -e
 
-# 配置
+# 配置 - 仅针对 agent-dashboard 项目
 LOG_DIR="/root/.openclaw/workspace/agent-dashboard/backend/logs"
-MAX_LOG_SIZE_MB=100
+MAX_LOG_SIZE_MB=50
 MAX_LOG_FILES=7
 MAX_LOG_AGE_DAYS=30
-NPM_LOGS_DIR="/root/.npm/_logs"
-NPM_LOGS_MAX_AGE_DAYS=7
 
 # 颜色输出
 RED='\033[0;31m'
@@ -95,62 +93,26 @@ if [ -d "$LOG_DIR" ]; then
         echo -e "删除文件数: ${RED}$DELETED_COUNT${NC}"
         echo -e "释放空间: ${GREEN}$(format_size $DELETED_SIZE)${NC}"
     fi
+    
+    # 检查当前日志文件大小
+    echo ""
+    echo -e "${YELLOW}[2] 检查当前日志文件大小${NC}"
+    
+    if [ -f "$LOG_DIR/backend.log" ]; then
+        CURRENT_LOG_SIZE=$(stat -c %s "$LOG_DIR/backend.log")
+        CURRENT_LOG_SIZE_MB=$((CURRENT_LOG_SIZE / 1048576))
+        
+        echo "backend.log 大小: $(format_size $CURRENT_LOG_SIZE) / ${MAX_LOG_SIZE_MB}MB"
+        
+        if [ $CURRENT_LOG_SIZE_MB -ge $MAX_LOG_SIZE_MB ]; then
+            echo -e "${RED}警告: 当前日志文件已达到大小限制！${NC}"
+            echo "建议手动触发日志轮转或增加 maxBytes 配置"
+        else
+            echo -e "${GREEN}正常${NC}"
+        fi
+    fi
 else
     echo "日志目录不存在"
-fi
-
-# 清理 npm 调试日志
-echo ""
-echo -e "${YELLOW}[2] 清理 npm 调试日志${NC}"
-echo "日志目录: $NPM_LOGS_DIR"
-
-if [ -d "$NPM_LOGS_DIR" ]; then
-    NPM_TOTAL=$(du -sb "$NPM_LOGS_DIR" 2>/dev/null | cut -f1)
-    echo "当前大小: $(format_size $NPM_TOTAL)"
-    
-    NPM_DELETED=0
-    NPM_DELETED_SIZE=0
-    
-    for logfile in "$NPM_LOGS_DIR"/*.log; do
-        if [ -f "$logfile" ]; then
-            FILE_AGE=$(( ($(date +%s) - $(stat -c %Y "$logfile")) / 86400 ))
-            
-            if [ $FILE_AGE -gt $NPM_LOGS_MAX_AGE_DAYS ]; then
-                FILE_SIZE=$(stat -c %s "$logfile")
-                echo -e "  ${RED}删除${NC}: $(basename "$logfile") (${FILE_AGE}天前)"
-                rm -f "$logfile"
-                NPM_DELETED=$((NPM_DELETED + 1))
-                NPM_DELETED_SIZE=$((NPM_DELETED_SIZE + FILE_SIZE))
-            fi
-        fi
-    done
-    
-    if [ $NPM_DELETED -gt 0 ]; then
-        echo -e "删除文件数: ${RED}$NPM_DELETED${NC}"
-        echo -e "释放空间: ${GREEN}$(format_size $NPM_DELETED_SIZE)${NC}"
-    else
-        echo "无需清理"
-    fi
-else
-    echo "npm 日志目录不存在"
-fi
-
-# 检查当前日志文件大小
-echo ""
-echo -e "${YELLOW}[3] 检查当前日志文件大小${NC}"
-
-if [ -f "$LOG_DIR/backend.log" ]; then
-    CURRENT_LOG_SIZE=$(stat -c %s "$LOG_DIR/backend.log")
-    CURRENT_LOG_SIZE_MB=$((CURRENT_LOG_SIZE / 1048576))
-    
-    echo "backend.log 大小: $(format_size $CURRENT_LOG_SIZE) / ${MAX_LOG_SIZE_MB}MB"
-    
-    if [ $CURRENT_LOG_SIZE_MB -ge $MAX_LOG_SIZE_MB ]; then
-        echo -e "${RED}警告: 当前日志文件已达到大小限制！${NC}"
-        echo "建议手动触发日志轮转或增加 maxBytes 配置"
-    else
-        echo -e "${GREEN}正常${NC}"
-    fi
 fi
 
 echo ""
