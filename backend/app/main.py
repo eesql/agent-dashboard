@@ -9,13 +9,14 @@ from app.api.websocket import router as websocket_router
 from app.logging_config import setup_logging
 import logging
 
-# 配置日志（支持轮转，防止磁盘空间被占满）
+# 配置日志（支持轮转和压缩，防止磁盘空间被占满）
 setup_logging(
     log_level=settings.log_level,
     log_dir=settings.log_dir,
     log_max_bytes=settings.log_max_bytes,
     log_backup_count=settings.log_backup_count,
     debug=settings.debug,
+    compress_logs=getattr(settings, 'compress_logs', True),
 )
 logger = logging.getLogger(__name__)
 

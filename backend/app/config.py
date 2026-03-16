@@ -31,8 +31,9 @@ class Settings(BaseSettings):
     # 日志配置
     log_level: str = "INFO"
     log_dir: str = "./logs"
-    log_max_bytes: int = 100 * 1024 * 1024  # 100 MB
-    log_backup_count: int = 5
+    log_max_bytes: int = 50 * 1024 * 1024  # 50 MB (减小以更频繁轮转)
+    log_backup_count: int = 7  # 保留7个备份
+    compress_logs: bool = True  # 压缩旧日志
     
     class Config:
         env_file = ".env"

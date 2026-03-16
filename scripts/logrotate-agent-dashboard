@@ -1,0 +1,32 @@
+# Agent Dashboard 日志轮转配置
+# 放置到 /etc/logrotate.d/agent-dashboard
+# 或通过 cron.daily 调用
+
+/root/.openclaw/workspace/agent-dashboard/backend/logs/*.log {
+    daily
+    missingok
+    rotate 7
+    compress
+    delaycompress
+    notifempty
+    create 0644 root root
+    dateext
+    dateformat -%Y%m%d
+    maxsize 50M
+    postrotate
+        # 通知应用重新打开日志文件（可选）
+        # kill -USR1 $(cat /var/run/agent-dashboard.pid) 2>/dev/null || true
+    endscript
+}
+
+# npm 调试日志清理
+/root/.npm/_logs/*.log {
+    weekly
+    missingok
+    rotate 1
+    compress
+    delaycompress
+    notifempty
+    create 0644 root root
+    maxage 7
+}
