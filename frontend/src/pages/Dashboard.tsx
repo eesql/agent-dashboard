@@ -14,6 +14,7 @@ import { ToolCallTimeline } from '@/components/dashboard/ToolCallTimeline';
 import { StatsChart } from '@/components/dashboard/StatsChart';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Aurora } from '@/components/ui/Aurora';
 import { RefreshCw, Box, Wifi, WifiOff, MessageSquare, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -92,7 +93,17 @@ export const Dashboard: React.FC = () => {
   const onlineSessions = sessions.filter(s => s.status === 'online').length;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="relative min-h-screen overflow-hidden">
+      {/* 极光背景 */}
+      <Aurora 
+        colorStops={['#1a1a2e', '#16213e', '#0f3460']}
+        amplitude={1.2}
+        blend={0.6}
+        speed={0.8}
+      />
+      
+      {/* 内容区域 */}
+      <div className="relative z-10 p-6 space-y-6">
       {/* 页面头部 */}
       <div className="flex items-center justify-between">
         <div>
@@ -268,6 +279,7 @@ export const Dashboard: React.FC = () => {
           </Button>
         </div>
       </Card>
+      </div>
     </div>
   );
 };
