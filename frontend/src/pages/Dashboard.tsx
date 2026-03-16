@@ -96,10 +96,10 @@ export const Dashboard: React.FC = () => {
     <div className="relative min-h-screen overflow-hidden">
       {/* 极光背景 */}
       <Aurora 
-        colorStops={['#1a1a2e', '#16213e', '#0f3460']}
-        amplitude={1.2}
-        blend={0.6}
-        speed={0.8}
+        colorStops={['#a855f7', '#7c3aed', '#6366f1']}
+        amplitude={1.5}
+        blend={0.8}
+        speed={1.0}
       />
       
       {/* 内容区域 */}
