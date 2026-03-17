@@ -93,7 +93,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen">
       {/* 页面头部 - 带极光背景 */}
-      <header className="relative min-h-[5rem] py-4">
+      <header className="relative h-[5.5rem] py-4">
         {/* 极光背景 */}
         <Aurora 
           colorStops={['#a855f7', '#7c3aed', '#6366f1']}
