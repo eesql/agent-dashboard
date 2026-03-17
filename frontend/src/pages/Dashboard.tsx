@@ -27,7 +27,6 @@ export const Dashboard: React.FC = () => {
     syncMessage,
     fetchAgents, 
     syncAgents,
-    getOnlineAgents,
     clearError,
     clearSyncMessage
   } = useAgentStore();
@@ -89,8 +88,6 @@ export const Dashboard: React.FC = () => {
     await fetchSessions();
   };
 
-  // 用于调试或未来扩展
-  void getOnlineAgents();
   const onlineSessions = sessions.filter(s => s.status === 'online').length;
 
   return (
