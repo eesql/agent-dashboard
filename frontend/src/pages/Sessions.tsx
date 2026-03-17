@@ -6,13 +6,16 @@ import { useNavigate } from 'react-router-dom';
 import { sessionApi } from '@/services/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import Hyperspeed from '@/components/ui/Hyperspeed';
 import { 
   MessageSquare, 
   Clock, 
   Search, 
   Filter,
   RefreshCw,
-  User
+  User,
+  Sparkles,
+  EyeOff
 } from 'lucide-react';
 import type { Session } from '@/types';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -25,6 +28,11 @@ export const Sessions: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterKind, setFilterKind] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
+  const [hyperspeedEnabled, setHyperspeedEnabled] = useState(() => {
+    // 从 localStorage 读取用户偏好
+    const saved = localStorage.getItem('sessions-hyperspeed-enabled');
+    return saved !== null ? saved === 'true' : true; // 默认开启
+  });
 
   const fetchSessions = async () => {
     setLoading(true);
@@ -42,6 +50,11 @@ export const Sessions: React.FC = () => {
   useEffect(() => {
     fetchSessions();
   }, []);
+
+  // 保存特效开关状态到 localStorage
+  useEffect(() => {
+    localStorage.setItem('sessions-hyperspeed-enabled', String(hyperspeedEnabled));
+  }, [hyperspeedEnabled]);
 
   const formatTime = (dateString: string) => {
     try {
@@ -92,30 +105,48 @@ export const Sessions: React.FC = () => {
   const uniqueKinds = Array.from(new Set(sessions.map(s => s.kind).filter(Boolean)));
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="relative p-6 space-y-6 min-h-screen">
+      {/* Hyperspeed 背景特效 */}
+      {hyperspeedEnabled && (
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <Hyperspeed />
+        </div>
+      )}
+      
       {/* 页面头部 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between relative z-10">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Sessions</h1>
           <p className="text-sm text-text-secondary mt-1">
             会话历史管理
           </p>
         </div>
-        <Button onClick={fetchSessions} loading={loading} variant="secondary">
-          <RefreshCw size={16} />
-          刷新
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* 特效开关按钮 */}
+          <Button 
+            onClick={() => setHyperspeedEnabled(!hyperspeedEnabled)} 
+            variant="ghost"
+            title={hyperspeedEnabled ? '关闭背景特效' : '开启背景特效'}
+          >
+            {hyperspeedEnabled ? <EyeOff size={16} /> : <Sparkles size={16} />}
+            {hyperspeedEnabled ? '关闭特效' : '开启特效'}
+          </Button>
+          <Button onClick={fetchSessions} loading={loading} variant="secondary">
+            <RefreshCw size={16} />
+            刷新
+          </Button>
+        </div>
       </div>
 
       {/* 错误提示 */}
       {error && (
-        <div className="p-4 bg-error-500/10 border border-error-500/20 rounded-lg">
+        <div className="p-4 bg-error-500/10 border border-error-500/20 rounded-lg relative z-10">
           <p className="text-sm text-error-500">{error}</p>
         </div>
       )}
 
       {/* 搜索和筛选 */}
-      <Card>
+      <Card className="relative z-10">
         <div className="flex flex-col md:flex-row gap-4">
           {/* 搜索框 */}
           <div className="flex-1 relative">
@@ -147,14 +178,14 @@ export const Sessions: React.FC = () => {
       </Card>
 
       {/* 统计信息 */}
-      <div className="flex items-center gap-4 text-sm text-text-secondary">
+      <div className="flex items-center gap-4 text-sm text-text-secondary relative z-10">
         <span>共 {filteredSessions.length} 个会话</span>
         <span>（总计 {sessions.length} 个）</span>
       </div>
 
       {/* 会话列表 */}
       {filteredSessions.length === 0 ? (
-        <Card>
+        <Card className="relative z-10">
           <div className="text-center py-12">
             <MessageSquare size={48} className="mx-auto text-text-muted mb-4" />
             <p className="text-text-secondary">
@@ -163,7 +194,7 @@ export const Sessions: React.FC = () => {
           </div>
         </Card>
       ) : (
-        <Card className="overflow-hidden p-0">
+        <Card className="overflow-hidden p-0 relative z-10">
           <div className="overflow-x-auto">
             <table className="table w-full">
               <thead>

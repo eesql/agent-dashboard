@@ -60,22 +60,22 @@ apiClient.interceptors.response.use(
   }
 );
 
-// 封装请求方法
+// 封装请求方法 - 注意：响应拦截器已返回 response.data
 export const request = {
-  get: <T>(url: string, config?: AxiosRequestConfig) => {
-    return apiClient.get<T>(url, config);
+  get: <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.get<T>(url, config) as unknown as Promise<T>;
   },
   
-  post: <T>(url: string, data?: any, config?: AxiosRequestConfig) => {
-    return apiClient.post<T>(url, data, config);
+  post: <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.post<T>(url, data, config) as unknown as Promise<T>;
   },
   
-  put: <T>(url: string, data?: any, config?: AxiosRequestConfig) => {
-    return apiClient.put<T>(url, data, config);
+  put: <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.put<T>(url, data, config) as unknown as Promise<T>;
   },
   
-  delete: <T>(url: string, config?: AxiosRequestConfig) => {
-    return apiClient.delete<T>(url, config);
+  delete: <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.delete<T>(url, config) as unknown as Promise<T>;
   },
 };
 

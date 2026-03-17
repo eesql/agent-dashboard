@@ -9,7 +9,7 @@ interface MetricsCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: 'tokens' | 'requests' | 'cost' | 'agents';
+  icon: 'tokens' | 'requests' | 'cost' | 'agents' | 'sessions';
   trend?: number;
 }
 
@@ -30,6 +30,8 @@ export const MetricsCard: React.FC<MetricsCardProps> = ({
         return <DollarSign size={20} className="text-warning-500" />;
       case 'agents':
         return <Users size={20} className="text-info-500" />;
+      case 'sessions':
+        return <Activity size={20} className="text-accent-500" />;
     }
   };
 

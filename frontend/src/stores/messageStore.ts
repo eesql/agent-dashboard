@@ -27,8 +27,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   fetchMessages: async (sessionId: string, params?: { limit?: number; offset?: number }) => {
     set({ loading: true, error: null });
     try {
-      const res = await messageApi.list(sessionId, params);
-      const data = res.data;
+      const data = await messageApi.list(sessionId, params);
       
       set({
         messages: data.messages || [],

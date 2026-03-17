@@ -5,10 +5,8 @@ import React from 'react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { 
-  Activity, 
   Clock, 
   Cpu, 
-  Zap, 
   MessageSquare,
   Brain,
   TrendingUp
@@ -27,14 +25,6 @@ const getStatusBorder = (status: string) => {
     case 'online': return 'border-l-status-online';
     case 'busy': return 'border-l-status-busy';
     default: return 'border-l-status-offline';
-  }
-};
-
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'online': return '在线';
-    case 'busy': return '忙碌';
-    default: return '离线';
   }
 };
 

@@ -89,7 +89,8 @@ export const Dashboard: React.FC = () => {
     await fetchSessions();
   };
 
-  const onlineAgents = getOnlineAgents();
+  // 用于调试或未来扩展
+  void getOnlineAgents();
   const onlineSessions = sessions.filter(s => s.status === 'online').length;
 
   return (

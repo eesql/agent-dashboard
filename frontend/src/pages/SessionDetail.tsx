@@ -67,8 +67,9 @@ export const SessionDetail: React.FC = () => {
     
     try {
       const res = await messageApi.list(sessionId, { limit: MESSAGE_LIMIT, offset });
-      setMessages(prev => offset === 0 ? res.messages : [...prev, ...res.messages]);
-      setMessageOffset(offset + res.messages.length);
+      const messages = res.messages || [];
+      setMessages(prev => offset === 0 ? messages : [...prev, ...messages]);
+      setMessageOffset(offset + messages.length);
     } catch (err: any) {
       console.error('Failed to fetch messages:', err);
     }
